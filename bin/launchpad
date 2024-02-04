@@ -1,0 +1,10 @@
+#!/usr/bin/env bb
+
+(require
+ '[lambdaisland.launchpad :as launchpad])
+
+(launchpad/main {})
+
+;; Local Variables:
+;; mode:clojure
+;; End:
