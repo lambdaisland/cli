@@ -1,11 +1,25 @@
 (ns lambdaisland.cli
   (:require [clojure.string :as str]))
 
-(defn print-help [prefix commands]
-  (println "Usage:" prefix "[COMMAND] [COMMAND_ARGS...]")
-  (println)
-  (doseq [[cmd {:keys [description]}] (partition 2 commands)]
-    (println (format "  %-15s%s" cmd (or description "")))))
+;; I've tried to be somewhat consistent with variable naming
+
+;; - cmdspec: the map passed into dispatch, with :commands and :flags, possibly augmented with :flagspecs
+;; - cli-args: the vector of cli arguments as the come in, or the tail of it if part has been processed
+;; - flagspecs: map of the possible flags with metadata, expanded to serve direct lookup, e.g. {"-i" {,,,} "--input" {,,,} "--no-input" {,,,}}
+;; - flagspec: map of how to deal with a given flag {:flag "--foo", :key :foo, :short? false, :argcnt 1}
+;; - argcnt: number of arguments a given flag consumes (usually zero or one, but could be more)
+;; - args/pos-args: vector of positional arguments that will go to the command
+;; - opts: options that will go the command, based on any parsed flags
+;; - commands: specification of (sub)-commands, can be vector (for order) or map
+;; - raw-flagspecs: flags as specified in the cmdspec, without normalization
+;; - cmd: a single (sub) command like `"add"` or `"widgets"`
+
+(defn print-help [{:keys [commands flags] :as cmdspec} _]
+  (let [commands (if (vector? commands) (partition 2 commands) commands)]
+    (println "Usage:" (or (:name cmdspec) "cli") "[command...] [flags-or-args...]")
+    (println)
+    (doseq [[cmd {:keys [description]}] commands]
+      (println (format (str "  %-" (+ 3 (apply max (map (comp count first) commands))) "s%s") cmd (or description ""))))))
 
 (defn parse-error! [& msg]
   (throw (ex-info (str/join " " msg) {:type ::parse-error})))
@@ -52,13 +66,13 @@
                {:value (not negative?)})
              flagopts))))
 
-(defn parse-flagspecs [flags]
+(defn parse-flagspecs [raw-flagspecs]
   (into {"--help" {:key :help :value true}}
         (map (juxt :flag identity))
         (mapcat
          (fn [[flagspec flagopts]]
            (parse-flagspec flagspec flagopts))
-         (if (vector? flags) (partition 2 flags) flags))))
+         (if (vector? raw-flagspecs) (partition 2 raw-flagspecs) raw-flagspecs))))
 
 (defn dispatch
   ([cmdspec]
@@ -68,6 +82,7 @@
      (dispatch cmdspec pos-args flags)))
   ([{:keys [commands flags name] :as cmdspec} pos-args opts]
    (let [[cmd & pos-args] pos-args
+         opts (update opts ::command (fnil conj []) cmd)
          program-name (or (:name cmdspec) "cli")
          command-map (if (vector? commands) (apply hash-map commands) commands)
          command-vec (if (vector? commands) commands (into [] cat commands))
@@ -79,127 +94,9 @@
                 (nil? commands))
            (= "help" cmd)
            (:help opts))
-       (print-help program-name command-vec)
+       (print-help cmdspec opts)
 
        :else
        (if subcommands
          (dispatch {:commands subcommands :flags flags :name (str program-name " " cmd)} pos-args opts)
          (command pos-args opts))))))
-
-(with-out-str
-  (dispatch
-   {:commands ["run" {:command (fn [args flags]
-                                 (print "RUN" args flags))}]}
-   ["run"]))
-;; => "RUN nil nil"
-
-(with-out-str
-  (dispatch
-   {:commands ["run" {:command (fn [args flags]
-                                 (print "RUN" args flags))}]}
-   ["run" "hello"]))
-;; => "RUN (hello) nil"
-
-(with-out-str
-  (dispatch
-   {:commands ["run" {:command (fn [args flags]
-                                 (print "RUN" args flags))
-                      }]}
-   ["help"]))
-;; => "Usage: cli [COMMAND] [COMMAND_ARGS...]\n\n  run            \n"
-
-(with-out-str
-  (dispatch
-   {:commands ["run" {:command (fn [args flags]
-                                 (print "RUN" args flags))
-                      :description "Do something"}]}
-   ["help"]))
-;; => "Usage: cli [COMMAND] [COMMAND_ARGS...]\n\n  run            Do something\n"
-
-(with-out-str
-  (dispatch
-   {:commands {"run" {:command (fn [args flags]
-                                 (print "RUN" args flags))
-                      :description "Do something"}}}
-   ["help"]))
-
-(defn show-args [cmd]
-  (fn [args flags]
-    (print (str/upper-case cmd) args flags)))
-
-(println
- (dispatch
-  {:commands {"run" {:command (show-args "run")
-                     :description "Do something"}
-              "widget" {:description "Work with widgets"
-                        :commands
-                        ["ls" {:description "List widgets"
-                               :command (show-args "widget ls")}
-                         "add" {:description "Add widget"
-                                :command (show-args "widget add")}]}}}
-  ["widget" "ls" "x" "--recursive" "--help"]))
-
-(println
- (dispatch
-  {:commands {"run" {:command (show-args "run")
-                     :description "Do something"}
-              "widget" {:description "Work with widgets"
-                        :commands
-                        ["ls" {:description "List widgets"
-                               :command (show-args "widget ls")}
-                         "add" {:description "Add widget"
-                                :command (show-args "widget add")}]}}
-   }
-  ["widget" "ls" "x" "--recursive" "--help"]))
-
-(dispatch
- {:commands {"run" {:command (show-args "run")
-                    :description "Do something"}
-             "widget" {:description "Work with widgets"
-                       :commands
-                       ["ls" {:description "List widgets"
-                              :command (show-args "widget ls")}
-                        "add" {:description "Add widget"
-                               :command (show-args "widget add")}]}}
-  :flags ["-i,--input FILE" {:desc "Specify input file"}
-          "--output FILE" "Specify output file"]}
- ["widget" "ls" "--input" "INPUT" "--output" "OUTPUT"])
-
-
-(parse-flagspec
- "-i,--input FILE" {:desc "Specify input file"})
-
-(parse-flagspecs
- ["-i,--input FILE" {:desc "Specify input file"}
-  "--output FILE" "Specify output file"
-  "--[no-]foo" ""])
-
-(let [cmdspec
-      {:commands {"run" {:command (show-args "run")
-                         :description "Do something"}
-                  "widget" {:description "Work with widgets"
-                            :commands
-                            ["ls" {:description "List widgets"
-                                   :command (show-args "widget ls")}
-                             "add" {:description "Add widget"
-                                    :command (show-args "widget add")}]}}
-       :flags ["-i,--input FILE" {:desc "Specify input file"
-                                  :key "XXX"}
-               "--output FILE" "Specify output file"]}]
-  (split-flags
-   (assoc cmdspec :flagspecs (parse-flagspecs (:flags cmdspec)))
-   ["widget" "ls" "--help" "--input" "INPUT" "--output" "OUTPUT"]))
-
-(dispatch
- {:commands {"run" {:command (show-args "run")
-                    :description "Do something"}
-             "widget" {:description "Work with widgets"
-                       :commands
-                       ["ls" {:description "List widgets"
-                              :command (show-args "widget ls")
-                              :help "List widgets in the order they exist."}
-                        "add" {:description "Add widget"
-                               :command (show-args "widget add")}]}}
-  :flags ["-i,--input FILE" {:desc "Specify input file"}
-          "--output FILE" "Specify output file"]}
- ["widget" "ls" "--help"])

@@ -2,6 +2,6 @@
 
 ## Added
 
-## Fixed
-
-## Changed
+- subcommand handling 
+- rudimentary flag handling
+- help text generation
