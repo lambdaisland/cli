@@ -4,10 +4,11 @@
   (:require [lioss.main :as lioss]))
 
 (lioss/main
- {:license          :mpl
-  :inception-year   2024
-  :description      "Command line parser with good subcommand and help handling"
-  :group-id         "com.lambdaisland"})
+ {:license           :mpl
+  :inception-year    2024
+  :description       "Command line parser with good subcommand and help handling"
+  :version-qualifier "alpha"
+  :group-id          "com.lambdaisland"})
 
 ;; Local Variables:
 ;; mode:clojure
