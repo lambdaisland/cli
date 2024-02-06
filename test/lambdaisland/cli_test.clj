@@ -6,21 +6,18 @@
 
 (set! *print-namespace-maps* false)
 
-(def last-args (atom nil))
 (def last-flags (atom nil))
 
-(defn capture-cmd [args flags]
-  (reset! last-args args)
+(defn capture-cmd [flags]
   (reset! last-flags flags))
 
 (defn do-dispatch [cli-args cmdspec]
-  (reset! last-args :not-called)
   (reset! last-flags :not-called)
   (let [out (with-out-str
               (dispatch cmdspec cli-args))]
     (if (seq out)
-      [@last-args @last-flags out]
-      [@last-args @last-flags])))
+      [@last-flags out]
+      @last-flags)))
 
 (defn lines [& args]
   (str/join "\n" args))
@@ -33,7 +30,7 @@
            ["run" {:command capture-cmd}]}))))
 
 
-(deftest help
+(deftest help-rendering
   (let [cmdspec {:commands
                  ["run" {:description "Do the thing"
                          :command capture-cmd}]}
@@ -45,7 +42,19 @@
                           "")]]
     (is (= help-out (do-dispatch [] cmdspec)))
     (is (= help-out (do-dispatch ["help"] cmdspec)))
-    (is (= help-out (do-dispatch ["--help"] cmdspec)))))
+    (is (= help-out (do-dispatch ["--help"] cmdspec)))
+
+    #_
+    (is (= [["x"] {::cli/command ["widget" "ls"]}]
+           (do-dispatch ["widget" "ls" "--help"] cmdspec))))
+
+  (let [cmdspec {:commands
+                 ["run" {:description "Do the thing"
+                         :command capture-cmd}]
+                 :flags
+                 ["-i,--input FILE" "Specify input file"]}]
+    (println (last (do-dispatch ["--help"] cmdspec))))
+  )
 
 (deftest arguments
   (testing "remaining positional arguments are passed to the command"
@@ -64,11 +73,7 @@
                                        "add" {:description "Add widget"
                                               :command capture-cmd}]}}}]
     (is (= [["x"] {::cli/command ["widget" "ls"]}]
-           (do-dispatch ["widget" "ls" "x"] cmdspec)))
-
-    #_
-    (is (= [["x"] {::cli/command ["widget" "ls"]}]
-           (do-dispatch ["widget" "ls" "--help"] cmdspec)))))
+           (do-dispatch ["widget" "ls" "x"] cmdspec)))))
 
 (deftest flags
   (is (= [nil {:input "INPUT"
@@ -81,14 +86,85 @@
            :flags ["-i,--input FILE" {:desc "Specify input file"}
                    "--output FILE" "Specify output file"]}))))
 
+(deftest parse-flagstr-test
+  (testing "single short flag"
+    (is (= {:flagstr     "-i"
+            :flags       ["-i"]
+            :description "Specify input file"
+            :argdoc      ""
+            :key         :i
+            :argcnt      0
+            :args        []}
+           (parse-flagstr "-i" {:description "Specify input file"}))))
+  (testing "single long flag"
+    (is (= {:flagstr     "--input"
+            :flags       ["--input"]
+            :description "Specify input file"
+            :argdoc      ""
+            :key         :input
+            :argcnt      0
+            :args        []}
+           (parse-flagstr "--input" {:description "Specify input file"}))))
 
-;; (parse-flagspec
-;;  "-i,--input FILE" {:desc "Specify input file"})
+  (testing "short and long - with argument"
+    (is (= [
+            {:flag        "-i"
+             :short?      true
+             :args        '(:file)
+             :key         :input
+             :argcnt      1
+             :description "Specify input file"}
+            {:flag        "--input"
+             :short?      false
+             :args        '(:file)
+             :key         :input
+             :argcnt      1
+             :description "Specify input file"}]
+           (build-flagmap-entries ["-i,--input FILE" {:description "Specify input file"}]))))
 
-;; (parse-flagspecs
-;;  ["-i,--input FILE" {:desc "Specify input file"}
-;;   "--output FILE" "Specify output file"
-;;   "--[no-]foo" ""])
+  (testing "override key, value"
+    (is (= [{:flag        "--foo"
+             :short?      false
+             :args        ()
+             :key         :bar
+             :argcnt      0
+             :description "Do a foo"
+             :value       123}]
+           (build-flagmap-entries
+            ["--foo" {:description "Do a foo"
+                      :key         :bar
+                      :value       123}]))))
+
+  (testing "--[no-]"
+    (is (= [{:flag        "--no-foo"
+             :short?      false
+             :args        ()
+             :key         :foo
+             :argcnt      0
+             :value       false
+             :description "Enable/disable foo"}
+            {:flag        "--foo"
+             :short?      false
+             :args        ()
+             :key         :foo
+             :argcnt      0
+             :value       true
+             :description "Enable/disable foo"}]
+           (build-flagmap-entries ["--[no-]foo" {:description "Enable/disable foo"}])))))
+
+(deftest parse-arg-names-test
+  (is (= '[["-i"] "" ()]                     (parse-arg-names "-i")))
+  (is (= '[["-i"] " FOO BAR" (:foo :bar)]    (parse-arg-names "-i FOO BAR")))
+  (is (= '[["-i" "--input"] "=<foo>" (:foo)] (parse-arg-names "-i, --input=<foo>")))
+  (is (= '[["cmd"] " FILE" (:file)]          (parse-arg-names "cmd FILE")))
+  (is (= '[["cmd"] " <file>" (:file)]        (parse-arg-names "cmd <file>"))))
+
+(mapcat build-flagmap-entries
+        (coerce-to-pairs ["-i, --input ARG" {:description "foo"}]))
+(parse-flagstrs ["-i, --input, --[no-]foo ARG" {:description "foo"}])
+(parse-flagstrs ["-i, --input, --[no-]foo=<arg>" {:description "foo"}])
+(build-flagmap-entries ["-i, --input ARG" {:description "foo"}])
+
 
 ;; (let [cmdspec
 ;;       {:commands {"run" {:command (show-args "run")
@@ -103,7 +179,7 @@
 ;;                                   :key "XXX"}
 ;;                "--output FILE" "Specify output file"]}]
 ;;   (split-flags
-;;    (assoc cmdspec :flagspecs (parse-flagspecs (:flags cmdspec)))
+;;    (assoc cmdspec :flagspecs (parse-flagstrs (:flags cmdspec)))
 ;;    ["widget" "ls" "--help" "--input" "INPUT" "--output" "OUTPUT"]))
 
 ;; (dispatch
