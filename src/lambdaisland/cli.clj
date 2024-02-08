@@ -122,10 +122,12 @@
     (for [[_ dash no flag] flags
           negative?        (if no [true false] [false])]
       (cond-> {:flag   (str dash (if negative? "no-") flag)
-               :short? (= dash "-")
-               :args   args
                :key    key
                :argcnt argcnt}
+        (= dash "-")
+        (assoc :short? true)
+        (seq args)
+        (assoc :args args)
         no
         (assoc :value (not negative?))
         :->
@@ -147,9 +149,6 @@
                    [cmd (assoc v :argnames argnames)])))
           m)))
 
-(parse-arg-names "ls AB")
-;; => [["foo"] " ABC" (:abc)]
-
 (defn dispatch
   ([cmdspec]
    (dispatch cmdspec *command-line-args*))
@@ -157,17 +156,16 @@
    (let [[pos-args flags] (split-flags (assoc cmdspec :flagspecs (parse-flagstrs (:flags cmdspec))) cli-args)]
      (dispatch cmdspec pos-args flags)))
   ([{:keys [commands flags name] :as cmdspec} pos-args opts]
-   (let [[cmd & pos-args] pos-args
-         cmd (first (str/split cmd #"[ =]"))
-         _ (def xxx cmd)
-         opts (update opts ::command (fnil conj []) cmd)
-         program-name (or (:name cmdspec) "cli")
-         command-map (prepare-cmdmap commands)
-         _ (def yyy command-map)
-         command-vec (if (vector? commands) commands (into [] cat commands))
-         {command :command
+   (let [[cmd & pos-args]     pos-args
+         pos-args             (vec pos-args)
+         cmd                  (when cmd (first (str/split cmd #"[ =]")))
+         opts                 (update opts ::command (fnil conj []) cmd)
+         program-name         (or (:name cmdspec) "cli")
+         command-map          (prepare-cmdmap commands)
+         command-vec          (if (vector? commands) commands (into [] cat commands))
+         {command     :command
           subcommands :commands
-          argnames :argnames} (get command-map cmd)]
+          argnames    :argnames} (get command-map cmd)]
      (cond
        (or (nil? cmd)
            (and (nil? command)
