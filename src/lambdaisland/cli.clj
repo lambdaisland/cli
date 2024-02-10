@@ -23,7 +23,7 @@
    (print-table rows nil))
   ([rows {:keys [pad] :or {pad 2}}]
    (let [col-widths (map #(apply max (map count %)) (transpose rows))
-         fstr (str/join "   " (map #(str  "%-" % "s") col-widths))]
+         fstr (str/join "   " (map #(str  "%" (if (= 0 %) "" (- %))  "s") col-widths))]
      (doseq [row rows]
        (println (apply format (str (format (str "%" pad "s") "") fstr) row))))))
 
@@ -32,20 +32,42 @@
     (partition 2 o)
     o))
 
-(defn print-help [{:keys [commands flags] :as cmdspec} _]
-  (let [commands (coerce-to-pairs commands)
-        flags (coerce-to-pairs flags)
-        desc #(if (string? %) % (:description % ""))]
-    (println "Usage:" (or (:name cmdspec) "cli") "[command...] [flags-or-args...]")
+(defn short? [f]
+  (re-find #"^-[^-]$" f))
+
+(defn long? [f]
+  (re-find #"^--.*" f))
+
+(defn print-help [cmd-name command-pairs flagpairs]
+  (let [desc #(first (str/split (:doc % "") #"\R"))]
+    (println (str "Usage: " cmd-name
+                  (str/join (for [[_ {:keys [flags argdoc]}] flagpairs]
+                              (str " [" (str/join " | " flags) argdoc "]")))
+                  " <command> [<args>]"))
     (println)
-    (when (seq flags)
-      (print-table
-       (for [[flagstr flagopts] flags]
-         [flagstr (desc flagopts)]))
+    (when (seq flagpairs)
+      (let [has-short? (some short? (mapcat (comp :flags second) flagpairs))
+            has-long?  (some long? (mapcat (comp :flags second) flagpairs))]
+        (print-table
+         (for [[_ {:keys [flags argdoc] :as flagopts}] flagpairs]
+           (let [short (some short? flags)
+                 long (some long? flags)]
+             [(str (cond
+                     short
+                     (str short ", ")
+                     has-short?
+                     "    "
+                     :else
+                     "")
+                   long
+                   argdoc)
+              (desc flagopts)]))))
       (println))
     (print-table
-     (for [[cmd cmdopts] commands]
-       [cmd (desc cmdopts)]))))
+     (for [[cmd cmdopts] command-pairs]
+       [(str cmd (if (:commands cmdopts)
+                   " <command>"
+                   (:argdoc cmdopts))) (desc cmdopts)]))))
 
 (defn parse-error! [& msg]
   (throw (ex-info (str/join " " msg) {:type ::parse-error})))
@@ -59,10 +81,10 @@
 (defn update-flag [flags flagspec f & args]
   (apply update flags (:key flagspec) f args))
 
-(defn handle-flag [{:keys [flagspecs] :as cmdspec} flag cli-args args flags]
+(defn handle-flag [{:keys [flagmap strict?] :as cmdspec} flag cli-args args flags]
   (reduce
    (fn [[cli-args args flags] f]
-     (if-let [{:keys [argcnt value] :as flagspec} (get flagspecs f)]
+     (if-let [{:keys [argcnt value] :as flagspec} (get flagmap f)]
        (cond
          (or (nil? argcnt)
              (= 0 argcnt))
@@ -73,7 +95,9 @@
          [(next cli-args) args (assoc-flag flags flagspec (first cli-args))]
          :else
          [(drop argcnt cli-args) args (assoc-flag flags flagspec (take argcnt cli-args))])
-       (parse-error! "Unknown flag: " f)))
+       (if strict?
+         (parse-error! "Unknown flag: " f)
+         [cli-args args (update-flag flags {:key (keyword (str/replace f #"^-+" ""))} (fnil inc 0))])))
    [cli-args args flags]
    (if (re-find #"^-\w+" flag)
      (map #(str "-" %) flag)
@@ -115,9 +139,13 @@
             :argcnt  argcnt}
            flagopts)))
 
+(defn prepare-flagpairs [flagstrs]
+  (map (fn [[flagstr flagopts]]
+         [flagstr (parse-flagstr flagstr (if (string? flagopts) {:doc flagopts} flagopts))])
+       (coerce-to-pairs flagstrs)))
+
 (defn build-flagmap-entries [[flagstr flagopts]]
-  (let [flagopts                                           (if (string? flagopts) {:description flagopts} flagopts)
-        {:keys [args key argcnt flags] :as parsed-flagstr} (parse-flagstr flagstr flagopts)
+  (let [{:keys [args key argcnt flags] :as parsed-flagstr} flagopts
         flags                                              (map #(re-find #"^(--?)(\[no-\])?([\w-]+)$" %) flags)]
     (for [[_ dash no flag] flags
           negative?        (if no [true false] [false])]
@@ -133,48 +161,55 @@
         :->
         (merge flagopts)))))
 
-(defn parse-flagstrs [flagstrs]
+(defn parse-flagstrs [flagpairs]
   (into {"--help" {:key :help :value true}}
         (comp
          (mapcat build-flagmap-entries)
          (map (juxt :flag identity)))
-        (coerce-to-pairs flagstrs)))
+        flagpairs))
 
-(defn prepare-cmdmap [commands]
+(defn prepare-cmdpairs [commands]
   (let [m (if (vector? commands) (apply hash-map commands) commands)]
-    (into {}
-          (map (fn [[k v]]
-                 (let [[[cmd] doc argnames] (parse-arg-names k)]
-                   (def zzz [k cmd])
-                   [cmd (assoc v :argnames argnames)])))
-          m)))
+    (map (fn [[k v]]
+           (let [v (if (var? v) (assoc (meta v) :command v) v)
+                 [[cmd] doc argnames] (parse-arg-names k)]
+             [cmd (assoc v :argdoc doc :argnames argnames)]))
+         m)))
 
 (defn dispatch
   ([cmdspec]
    (dispatch cmdspec *command-line-args*))
-  ([cmdspec cli-args]
-   (let [[pos-args flags] (split-flags (assoc cmdspec :flagspecs (parse-flagstrs (:flags cmdspec))) cli-args)]
+  ([{:keys [flags] :as cmdspec} cli-args]
+   (let [flagpairs        (prepare-flagpairs flags)
+         flagmap          (parse-flagstrs flagpairs)
+         cmdspec          (assoc cmdspec :flagpairs flagpairs :flagmap flagmap)
+         [pos-args flags] (split-flags cmdspec cli-args)]
      (dispatch cmdspec pos-args flags)))
-  ([{:keys [commands flags name] :as cmdspec} pos-args opts]
-   (let [[cmd & pos-args]     pos-args
-         pos-args             (vec pos-args)
-         cmd                  (when cmd (first (str/split cmd #"[ =]")))
-         opts                 (update opts ::command (fnil conj []) cmd)
-         program-name         (or (:name cmdspec) "cli")
-         command-map          (prepare-cmdmap commands)
-         command-vec          (if (vector? commands) commands (into [] cat commands))
+  ([{:keys [commands flags flagpairs flagmap name] :as cmdspec} pos-args opts]
+   (let [[cmd & pos-args]        pos-args
+         pos-args                (vec pos-args)
+         cmd                     (when cmd (first (str/split cmd #"[ =]")))
+         opts                    (update opts ::command (fnil conj []) cmd)
+         program-name            (or (:name cmdspec) "cli")
+         command-pairs           (prepare-cmdpairs commands)
+         command-map             (into {} command-pairs)
          {command     :command
           subcommands :commands
-          argnames    :argnames} (get command-map cmd)]
+          argnames    :argnames
+          ;; TODO: bit tricky because it might influence earlier parsing
+          #_#_extra-flags :flags} (get command-map cmd)]
+
      (cond
        (or (nil? cmd)
            (and (nil? command)
                 (nil? commands))
            (= "help" cmd)
            (:help opts))
-       (print-help cmdspec opts)
+       (print-help program-name command-pairs flagpairs)
 
        :else
        (if subcommands
-         (dispatch {:commands subcommands :flags flags :name (str program-name " " cmd)} pos-args opts)
+         (dispatch (assoc cmdspec
+                          :commands subcommands
+                          :name (str program-name " " cmd)) pos-args opts)
          (command (merge (assoc opts ::argv pos-args) (zipmap argnames pos-args))))))))

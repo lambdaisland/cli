@@ -1,0 +1,36 @@
+#!/usr/bin/env bb
+
+(require '[lambdaisland.cli :as cli]
+         '[clojure.pprint :refer [pprint]])
+
+(defn list-widgets
+  "List widgets
+
+  Print a complete list of widgets."
+  [opts]
+  (pprint opts))
+
+(defn add-widget
+  "Add a widget
+
+  Add a widget with the given attributes."
+  [opts]
+  (pprint opts))
+
+(defn auth-login
+  "Login with your account"
+  [opts]
+  (pprint opts))
+
+(cli/dispatch
+ {:name "cli-test"
+  :strict? true
+  :commands
+  ["ls" #'list-widgets
+   "add <id>" #'add-widget
+   "auth" {:doc "Auth commands"
+           :commands ["login" #'auth-login]
+           :flags ["--account=<id>" "Set account id"]}]
+  :flags
+  ["-v,--verbose" "Increase verbosity"
+   "--input=<foo>" "Input file"]})
