@@ -95,7 +95,7 @@
 (defn parse-arg-names [str]
   [(str/split (str/replace str args-re "") #",\s*")
    (str/join (map first (re-seq args-re str)))
-   (map (fn [[_ u l]] (keyword (str/lower-case (or u l)))) (re-seq args-re str))])
+   (mapv (fn [[_ u l]] (keyword (str/lower-case (or u l)))) (re-seq args-re str))])
 
 (defn parse-flagstr [flagstr flagopts]
   (let [;; support "--foo=<hello>" and "--foo HELLO"
