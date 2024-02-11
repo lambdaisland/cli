@@ -81,29 +81,39 @@
 (defn parse-error! [& msg]
   (throw (ex-info (str/join " " msg) {:type ::parse-error})))
 
+(defn add-middleware [opts {mw :middleware}]
+  (let [mw (if (or (nil? mw) (sequential? mw)) mw [mw])]
+    (update opts ::middleware (fnil into []) mw)))
+
 (defn assoc-flag
   ([flags flagspec]
-   (if-let [handler (:handler flagspec)]
-     (handler flags)
-     (assoc flags (:key flagspec) (:value flagspec))))
+   (add-middleware
+    (if-let [handler (:handler flagspec)]
+      (handler flags)
+      (assoc flags (:key flagspec) (:value flagspec)))
+    flagspec))
   ([flags flagspec & args]
-   (if-let [handler (:handler flagspec)]
-     (apply handler flags args)
-     (assoc flags (:key flagspec)
-            (if (= 1 (count args))
-              (first args)
-              (vec args))))))
+   (add-middleware
+    (if-let [handler (:handler flagspec)]
+      (apply handler flags args)
+      (assoc flags (:key flagspec)
+             (if (= 1 (count args))
+               (first args)
+               (vec args))))
+    flagspec)))
 
 (defn update-flag [flags flagspec f & args]
-  (if-let [handler (:handler flagspec)]
-    (apply handler flags args)
-    (apply update flags (:key flagspec) f args)))
+  (add-middleware
+   (if-let [handler (:handler flagspec)]
+     (apply handler flags args)
+     (apply update flags (:key flagspec) f args))
+   flagspec))
 
 (defn handle-flag [{:keys [flagmap strict?] :as cmdspec} flag cli-args args flags]
   (reduce
    (fn [[cli-args args flags] f]
      (let [[f arg] (str/split f #"=")]
-       (if-let [{:keys [argcnt value handler] :as flagspec} (get flagmap f)]
+       (if-let [{:keys [argcnt value handler middleware] :as flagspec} (get flagmap f)]
          (cond
            (or (nil? argcnt)
                (= 0 argcnt))
@@ -238,8 +248,10 @@
      command
      (if (:help opts)
        (print-help program-name doc [] flagpairs)
-       (command (merge (assoc opts ::argv pos-args)
-                       (zipmap argnames pos-args))))
+       ((reduce #(%2 %1) command (::middleware opts)) (-> opts
+                                                          (dissoc ::middleware)
+                                                          (assoc ::argv pos-args)
+                                                          (merge (zipmap argnames pos-args)))))
 
      commands
      (let [[cmd & pos-args] pos-args

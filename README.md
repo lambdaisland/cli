@@ -210,6 +210,22 @@ If you are explicit about which flags you accept, then you may prefer not to let
 you can set `:strict? true`. In this mode only explicitly configured flags are
 accepted, others throw an error.
 
+A final possibility is to set `:middleware` for a flag, this is a function or
+list of functions that get wrapped around the final command.
+
+```clj
+(cli/dispatch
+ {:commands
+  ["ls" {:command #'list-widgets
+         :flags
+         ["-l, --long"
+          {:doc        "Use long format"
+           :middleware [(fn [cmd]
+                          (fn [opts]
+                            (binding [*format* :long]
+                              (cmd opts))))]}]}]})
+```
+
 ### Commands
 
 `lambdaisland/cli` is specifically meant for CLI tools with multiple subcommands

@@ -42,14 +42,15 @@
                    :handler (fn [opts file] (assoc opts :input-file file))}]})
 
 (cli/dispatch
- {:name    "cli-test"
-  :doc     "This is my cool CLI tool. Use it well."
-  :commands
-  ["ls"       {:command #'list-widgets
-               :flags   ["-l, --long" "Use long format"]}
-   "add <id>" #'add-widget]
-  :flags
-  ["-v,--verbose" "Increase verbosity"]})
+ {:commands
+  ["ls" {:command #'list-widgets
+         :flags
+         ["-l, --long"
+          {:doc        "Use long format"
+           :middleware [(fn [cmd]
+                          (fn [opts]
+                            (binding [*format* :long]
+                              (cmd opts))))]}]}]})
 #_
 (cli/dispatch
  {:name    "cli-test"
