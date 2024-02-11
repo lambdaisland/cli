@@ -109,11 +109,21 @@
      (apply update flags (:key flagspec) f args))
    flagspec))
 
+(defn default-parse [s]
+  (cond
+    (re-find #"^-?\d+$" s)
+    (parse-long s)
+    (re-find #"^-?\d+\.\d+$" s)
+    (parse-double s)
+    :else
+    s))
+
 (defn handle-flag [{:keys [flagmap strict?] :as cmdspec} flag cli-args args flags]
   (reduce
    (fn [[cli-args args flags] f]
      (let [[f arg] (str/split f #"=")]
-       (if-let [{:keys [argcnt value handler middleware] :as flagspec} (get flagmap f)]
+       (if-let [{:keys [argcnt value handler middleware parse] :as flagspec
+                 :or {parse default-parse}} (get flagmap f)]
          (cond
            (or (nil? argcnt)
                (= 0 argcnt))
@@ -122,10 +132,10 @@
                             (update-flag flags flagspec (fnil inc 0)))]
            (= 1 argcnt)
            (if arg
-             [cli-args args (assoc-flag flags flagspec arg)]
-             [(next cli-args) args (assoc-flag flags flagspec (first cli-args))])
+             [cli-args args (assoc-flag flags flagspec (parse arg))]
+             [(next cli-args) args (assoc-flag flags flagspec (parse (first cli-args)))])
            :else
-           [(drop argcnt cli-args) args (assoc-flag flags flagspec (take argcnt cli-args))])
+           [(drop argcnt cli-args) args (assoc-flag flags flagspec (map parse (take argcnt cli-args)))])
          (if strict?
            (parse-error! "Unknown flag: " f)
            [cli-args args (update-flag flags {:key (keyword (str/replace f #"^-+" ""))} #(or arg ((fnil inc 0) %)))]))))
@@ -238,7 +248,10 @@
          cmdspec                  (assoc cmdspec :flagpairs flagpairs :flagmap flagmap)
          [cmdspec pos-args flags] (split-flags cmdspec cli-args)
          flagpairs                (get cmdspec :flagpairs)]
-     (dispatch (merge (meta (:command cmdspec)) cmdspec) pos-args flags)))
+     (dispatch (merge (meta (:command cmdspec)) cmdspec) pos-args (merge (reduce #(if-let [d (:default %2)]
+                                                                                    (assoc %1 (:key %2) d)
+                                                                                    %1) {} (map second flagpairs))
+                                                                         flags))))
   ([{:keys        [commands doc argnames command flags flagpairs flagmap]
      :as          cmdspec
      program-name :name

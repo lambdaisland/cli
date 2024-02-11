@@ -1,10 +1,14 @@
 # Unreleased
 
-## Added
+Much expanded and improved version, see README for all details. This is
+approaching the envisioned scope for this library.
 
-## Fixed
-
-## Changed
+- take docstring/command from var
+- `:strict?` mode
+- `:handler` and `:middleware` on flags
+- Much improved help text rendering
+- More lenient flag parsing
+- Add `:default` and `:parse`
 
 # 0.2.11-alpha (2024-02-08 / 0a352bc)
 

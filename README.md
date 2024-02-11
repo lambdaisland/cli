@@ -161,6 +161,10 @@ At this point a few things are worth calling out.
 - You can use the `--[no-]foo` syntax for adding both a `--foo` and a `--no-foo`
   flag, in this case the resulting value in the opts map will be `:foo true` or
   `:foo false`
+- You can add a `:default` to a flag, like `["--port PORT" {:default 8080}]`
+- You can set a `:parse` function which will be used to parse/coerce the
+  argument. The default will parse numbers (basic longs and doubles, no special
+  formats), and nothing else.
 
 You can also explicitly set which key to use with `:key`, as well as setting a
 specific `:value`, for instance:

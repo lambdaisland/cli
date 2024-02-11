@@ -45,12 +45,11 @@
  {:commands
   ["ls" {:command #'list-widgets
          :flags
-         ["-l, --long"
+         ["--port PORT" {:doc  "Port number"
+                         :default 8080}
+          "-l, --long"
           {:doc        "Use long format"
-           :middleware [(fn [cmd]
-                          (fn [opts]
-                            (binding [*format* :long]
-                              (cmd opts))))]}]}]})
+           }]}]})
 #_
 (cli/dispatch
  {:name    "cli-test"
