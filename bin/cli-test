@@ -22,15 +22,51 @@
   [opts]
   (pprint opts))
 
+(defn auth-logout
+  "Log out of your account"
+  [opts]
+  (pprint opts))
+
+(defn cli-test
+  "Ground breaking tool breaks new ground."
+  [flags]
+  (pprint flags))
+
+#_
 (cli/dispatch
- {:name "cli-test"
+ {:command #'cli-test
+  :flags
+  ["--prod" {:doc "Use the production environment"
+             :handler (fn [opts] (assoc opts :env :prod))}
+   "--input FILE" {:doc "Use the staging environment"
+                   :handler (fn [opts file] (assoc opts :input-file file))}]})
+
+(cli/dispatch
+ {:name    "cli-test"
+  :doc     "This is my cool CLI tool. Use it well."
+  :commands
+  ["ls"       {:command #'list-widgets
+               :flags   ["-l, --long" "Use long format"]}
+   "add <id>" #'add-widget]
+  :flags
+  ["-v,--verbose" "Increase verbosity"]})
+#_
+(cli/dispatch
+ {:name    "cli-test"
+  :doc     "This is my cool CLI tool. Use it well."
   :strict? true
   :commands
-  ["ls" #'list-widgets
+  ["ls"       #'list-widgets
    "add <id>" #'add-widget
-   "auth" {:doc "Auth commands"
-           :commands ["login" #'auth-login]
-           :flags ["--account=<id>" "Set account id"]}]
+   "auth" {:doc      "Auth commands"
+           :commands ["login"  #'auth-login
+                      "logout" #'auth-logout]}]
   :flags
   ["-v,--verbose" "Increase verbosity"
    "--input=<foo>" "Input file"]})
+
+;; (require '[lambdaisland.cli :as cli]
+;;          '[clojure.pprint :as pprint])
+
+
+;; (cli/dispatch #'cli-test)
