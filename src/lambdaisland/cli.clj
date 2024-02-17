@@ -88,17 +88,21 @@
   (let [mw (if (or (nil? mw) (sequential? mw)) mw [mw])]
     (update opts ::middleware (fnil into []) mw)))
 
+(defn call-handler [handler flags & args]
+  (binding [*opts* flags]
+    (apply handler flags args)))
+
 (defn assoc-flag
   ([flags flagspec]
    (add-middleware
     (if-let [handler (:handler flagspec)]
-      (binding [*opts* flags] (handler flags))
+      (call-handler handler flags)
       (assoc flags (:key flagspec) (:value flagspec)))
     flagspec))
   ([flags flagspec & args]
    (add-middleware
     (if-let [handler (:handler flagspec)]
-      (binding [*opts* flags] (apply handler flags args))
+      (apply call-handler handler flags args)
       (assoc flags (:key flagspec)
              (if (= 1 (count args))
                (first args)
@@ -108,7 +112,7 @@
 (defn update-flag [flags flagspec f & args]
   (add-middleware
    (if-let [handler (:handler flagspec)]
-     (binding [*opts* flags] (apply handler flags args))
+     (apply call-handler handler flags args)
      (apply update flags (:key flagspec) f args))
    flagspec))
 
@@ -243,7 +247,7 @@
           init
           (map second flagpairs)))
 
-(defn add-extra-flags
+(defn add-processed-flags
   "We process flag information for easier use, this results in
   `:flagpairs` (ordered sequence of pairs, mainly used in printing help
   information), and `:flagmap` (for easy lookup), added to the `cmdspec`. As we
@@ -268,11 +272,13 @@
   (loop [cmdspec          cmdspec
          [arg & cli-args] cli-args
          args             []
+         seen-prefixes    #{}
          flags            init]
     ;; Handle additional flags by nested commands
-    (let [extra-flags (cmd->flags cmdspec args)
+    (let [extra-flags (when-not (seen-prefixes args)
+                        (cmd->flags cmdspec args))
           flags       (add-defaults flags (prepare-flagpairs extra-flags))
-          cmdspec     (add-extra-flags cmdspec extra-flags)]
+          cmdspec     (add-processed-flags cmdspec extra-flags)]
       (cond
         (nil? arg)
         [cmdspec args flags]
@@ -283,10 +289,10 @@
         (and (= \- (first arg))
              (not= 1 (count arg))) ; single dash is considered a positional argument
         (let [[cli-args args flags] (handle-flag cmdspec arg cli-args args flags)]
-          (recur (dissoc cmdspec :flags) cli-args args flags))
+          (recur (dissoc cmdspec :flags) cli-args args (conj seen-prefixes args) flags))
 
         :else
-        (recur (dissoc cmdspec :flags) cli-args (conj args (str/replace arg #"^\\(.)" (fn [[_ o]] o))) flags)))))
+        (recur (dissoc cmdspec :flags) cli-args (conj args (str/replace arg #"^\\(.)" (fn [[_ o]] o))) (conj seen-prefixes args) flags)))))
 
 (defn dispatch
   "Main entry point for com.lambdaisland/cli.
