@@ -14,13 +14,13 @@ Command line parser with good subcommand and help handling
 To use the latest release, add the following to your `deps.edn` ([Clojure CLI](https://clojure.org/guides/deps_and_cli))
 
 ```
-com.lambdaisland/cli {:mvn/version "0.3.19-alpha"}
+com.lambdaisland/cli {:mvn/version "0.4.24"}
 ```
 
 or add the following to your `project.clj` ([Leiningen](https://leiningen.org/))
 
 ```
-[com.lambdaisland/cli "0.3.19-alpha"]
+[com.lambdaisland/cli "0.4.24"]
 ```
 <!-- /installation -->
 
