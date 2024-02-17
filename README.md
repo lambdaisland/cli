@@ -144,6 +144,15 @@ $ cli-test -vvv --input=world.txt --env prod --cool=123
  :lambdaisland.cli/argv []}
 ```
 
+So your `:command` function receives a map, which contains the parsed flags.
+Positional argument are also added to the map, if they are given a name (which
+we'll show below), but they are also gathered under the special key
+`::cli/argv`.
+
+Note that this map is also bound to the dynamic var `cli/*opts*`, so it's not
+necessary to pass it around everywhere. This is especially useful for flags that
+influence global behavior, like `--verbose`, `--silent`, or `--dry-run`.
+
 At this point a few things are worth calling out.
 
 - We support both `--flag ARG` and `--flag=<arg>` format in the flag
@@ -165,6 +174,10 @@ At this point a few things are worth calling out.
 - You can set a `:parse` function which will be used to parse/coerce the
   argument. The default will parse numbers (basic longs and doubles, no special
   formats), and nothing else.
+- If you have a `:default` which is a string, and you have a `:parse` function,
+  then the default will be run through parse as well. It's generally best to set
+  the default to a string or a number, this will look better in the help text,
+  where we show the default.
 
 You can also explicitly set which key to use with `:key`, as well as setting a
 specific `:value`, for instance:
@@ -204,6 +217,10 @@ but you could also use it for instance to change global state.
 $ cli-test --input foo
 {:input-file "foo", :lambdaisland.cli/argv []}
 ```
+
+Note that if you have a `:default` and a `:handler`, then the handler will be
+called with the default first, always, and possibly later again with based on
+any CLI flags.
 
 <!-- (Note that a flag CAN have multiple positional arguments (e.g. `"--foo A B"`), -->
 <!-- but this is discouraged since it goes contrary to expectations of command line -->
@@ -266,8 +283,13 @@ keys through var metadata.
 
 ```shell
 $ cli-test auth login x y z
-#:lambdaisland.cli{:command ["auth" "login"], :argv ["x" "y" "z"]}
+{:lambdaisland.cli/command ["auth" "login"],
+ :lambdaisland.cli/argv ["x" "y" "z"]}
 ```
+
+Notice now CLI has split the positional argument into a "command" and "argv"
+(argument vector), and made both available in the map passed to the command (and
+bound to `cli/*opts*`).
 
 Here you start seeing the benefits of this stuff managed for you, things like
 requesting the help information for a subcommand "just works".

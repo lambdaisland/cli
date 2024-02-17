@@ -15,6 +15,8 @@
 ;; - raw-flagspecs: flags as specified in the cmdspec, without normalization
 ;; - cmd: a single (sub) command like `"add"` or `"widgets"`
 
+(def ^:dynamic *opts* nil)
+
 (defn transpose [m]
   (apply mapv vector m))
 
@@ -40,7 +42,8 @@
   (re-find #"^--.*" f))
 
 (defn print-help [cmd-name doc command-pairs flagpairs]
-  (let [desc #(first (str/split (:doc % "") #"\R"))]
+  (let [desc #(str (first (str/split (:doc % "") #"\R"))
+                   (when-let [d (:default %)] (str " (default " (pr-str d) ")")))]
     (println (str "Usage: " cmd-name
                   (str/join (for [[_ {:keys [flags argdoc]}] flagpairs]
                               (str " [" (str/join " | " flags) argdoc "]")))
@@ -239,6 +242,18 @@
                              (recur cmdspec cli-args args flags))
         :else              (recur cmdspec cli-args (conj args arg) flags)))))
 
+(defn default-flags [flagpairs]
+  (reduce (fn [opts flagspec]
+            (if-let [d (:default flagspec)]
+              (if-let [h (:handler flagspec)]
+                (h opts (if (and (string? d) (:parse flagspec))
+                          ((:parse flagspec default-parse) d)
+                          d))
+                (assoc opts (:key flagspec) d))
+              opts))
+          {}
+          (map second flagpairs)))
+
 (defn dispatch
   ([cmdspec]
    (dispatch (to-cmdspec cmdspec) *command-line-args*))
@@ -248,10 +263,9 @@
          cmdspec                  (assoc cmdspec :flagpairs flagpairs :flagmap flagmap)
          [cmdspec pos-args flags] (split-flags cmdspec cli-args)
          flagpairs                (get cmdspec :flagpairs)]
-     (dispatch (merge (meta (:command cmdspec)) cmdspec) pos-args (merge (reduce #(if-let [d (:default %2)]
-                                                                                    (assoc %1 (:key %2) d)
-                                                                                    %1) {} (map second flagpairs))
-                                                                         flags))))
+     (dispatch (merge (meta (:command cmdspec)) cmdspec)
+               pos-args
+               (merge (default-flags flagpairs) flags))))
   ([{:keys        [commands doc argnames command flags flagpairs flagmap]
      :as          cmdspec
      program-name :name
@@ -261,10 +275,11 @@
      command
      (if (:help opts)
        (print-help program-name doc [] flagpairs)
-       ((reduce #(%2 %1) command (::middleware opts)) (-> opts
-                                                          (dissoc ::middleware)
-                                                          (assoc ::argv pos-args)
-                                                          (merge (zipmap argnames pos-args)))))
+       (binding [*opts* (-> opts
+                            (dissoc ::middleware)
+                            (assoc ::argv pos-args)
+                            (merge (zipmap argnames pos-args)))]
+         ((reduce #(%2 %1) command (::middleware opts)) *opts*)))
 
      commands
      (let [[cmd & pos-args] pos-args

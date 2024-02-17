@@ -2,9 +2,17 @@
 
 ## Added
 
-## Fixed
+- Bind the options map to `cli/*opts*`, for easy access.
+- Show the default for a flag in the help text.
 
 ## Changed
+
+- When given both a `:default` and a `:handler` for a flag, call the handler
+  with the default, rather than just assoc-ing it.
+- When given a string `:default` and a `:parse` function for a flag, run the
+  default value through the parse function, rather than using it directly. Using
+  the unparsed string form for the default is preferable over for instance using
+  a keyword, since it leads to better help text rendering.
 
 # 0.3.19-alpha (2024-02-11 / d79ac0c)
 
