@@ -49,7 +49,9 @@
                          :default 8080}
           "-l, --long"
           {:doc        "Use long format"
-           }]}]})
+           }]}]
+  :flags
+  ["-s, --silent" "Shut up"]})
 #_
 (cli/dispatch
  {:name    "cli-test"

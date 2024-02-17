@@ -37,6 +37,9 @@ home-grown or general purpose tools.
 
 It scales from extremely low ceremony basic scripts, to fairly complex setups.
 
+This library helps you write [Well-behaved Command Line
+Tools](https://lambdaisland.com/blog/2020-07-28-well-behaved-command-line-tools)
+
 ## Usage
 
 The main entrypoint is `lambdaisland.cli/dispatch`, usually you're fine with the
@@ -178,6 +181,13 @@ At this point a few things are worth calling out.
   then the default will be run through parse as well. It's generally best to set
   the default to a string or a number, this will look better in the help text,
   where we show the default.
+- A single dash (`-`) is considered a positional argument, conventially
+  indicating stdin/stdout
+- To pass a positional argument that starts with a dash, prefix it with a
+  backslash. lambdaisland/cli will remove the backslash, and treat the remainder
+  as a positional argument rather than a flag. Note that the shell does its own
+  backspace (character escape) handling, so in practice this means prefixing
+  with two backslashes, e.g. `\\--foo`.
 
 You can also explicitly set which key to use with `:key`, as well as setting a
 specific `:value`, for instance:
@@ -359,6 +369,47 @@ This is my cool CLI tool. Use it well.
   -v, --verbose   Increase verbosity
   -l, --long      Use long format   
 ```
+
+### Processing Order
+
+Most of what lambdaisland/cli does is combine the command and flag descriptions
+with the incoming command line arguments to build up a map, which then gets
+passed to the command handler. This map gets built up in multiple steps.
+
+The `:init` configuration flag, if present, provides the starting point. It can
+be a map, or a zero-arity function returning a map.
+
+Then we add `:default` values for top-level `:flags`. Normally these are simply
+assoc'ed into the map provided by `:init`. If the flag also has a `:handler`,
+then the opts map we have so far is passed to the handler, which can manipulate
+it and return an updated version.
+
+Then we actually start processing command line arguments, splitting them into
+flags (start with a dash), or positional argument (does not start with a dash,
+or a single dash). Flag arguments are processed as we encounter them,
+potentially calling their handler, with the opts map we have so far, from
+`:init`, defaults, and earlier flags and flag handlers. The positional arguments
+are then used to determine which (sub-)command to invoke.
+
+During any handler execution `cli/*opts*` is bound to the intermediate opts map
+that we have so far, so any utility functions that are called can assume this is
+available.
+
+Sub-commands can add additional flag specifications, if we encounter those then
+their defaults are added to the opts map, either directly or through their
+defined handler. This does mean that these kind of flags can only be used
+*after* the command. This may change in the future, since this is an unfortunate
+asymmetry.
+
+Finally the opts map gets bound to `cli/*opts*`, middleware gets invoked (so
+`*opts*` can be accessed during middleware execution).
+
+Pay attention to the fact that the opts map is built up in multiple steps, and
+so flag handlers will only see a partial `opts`/`*opts*`. Because of this we
+recommend mainly using handlers to manipulate the opts map, and not much else.
+Any behavior should be reserved for the main command handler, and for
+middleware, which are guaranteed to see all possible flags reflected in the opts
+map they receive.
 
 <!-- opencollective -->
 ## Lambda Island Open Source

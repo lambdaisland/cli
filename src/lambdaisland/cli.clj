@@ -92,13 +92,13 @@
   ([flags flagspec]
    (add-middleware
     (if-let [handler (:handler flagspec)]
-      (handler flags)
+      (binding [*opts* flags] (handler flags))
       (assoc flags (:key flagspec) (:value flagspec)))
     flagspec))
   ([flags flagspec & args]
    (add-middleware
     (if-let [handler (:handler flagspec)]
-      (apply handler flags args)
+      (binding [*opts* flags] (apply handler flags args))
       (assoc flags (:key flagspec)
              (if (= 1 (count args))
                (first args)
@@ -108,7 +108,7 @@
 (defn update-flag [flags flagspec f & args]
   (add-middleware
    (if-let [handler (:handler flagspec)]
-     (apply handler flags args)
+     (binding [*opts* flags] (apply handler flags args))
      (apply update flags (:key flagspec) f args))
    flagspec))
 
@@ -156,7 +156,15 @@
    (mapv (fn [[_ u l]] (keyword (str/lower-case (or u l)))) (re-seq args-re str))])
 
 (defn to-cmdspec [?var]
-  (if (var? ?var) (assoc (meta ?var) :command ?var) ?var))
+  (cond
+    (var? ?var)
+    (assoc (meta ?var) :command ?var)
+
+    (var? (:command ?var))
+    (merge (meta (:command ?var)) ?var)
+
+    :else
+    ?var))
 
 (defn prepare-cmdpairs [commands]
   (let [m (if (vector? commands) (apply hash-map commands) commands)]
@@ -222,50 +230,120 @@
          (map (juxt :flag identity)))
         flagpairs))
 
-(defn split-flags [cmdspec cli-args]
-  (loop [cmdspec          cmdspec
-         [arg & cli-args] cli-args
-         args             []
-         flags            {}]
-    ;; Handle additional flags by nested commands
-    (let [extra-flags (cmd->flags cmdspec args)
-          flagpairs   (prepare-flagpairs extra-flags)
-          flagmap     (parse-flagstrs flagpairs)
-          cmdspec     (-> cmdspec
-                          (update :flagpairs (fn [fp] (into (vec fp) (remove #((into #{} (map first) fp) (first %))) flagpairs))) ; This prevents duplicates. Yes, this is not pretty. I'm very sorry.
-                          (update :flagmap merge flagmap))]
-
-      (cond
-        (nil? arg)         [cmdspec args flags]
-        (= "--" arg)       [cmdspec (into args cli-args) flags]
-        (= \- (first arg)) (let [[cli-args args flags] (handle-flag cmdspec arg cli-args args flags)]
-                             (recur cmdspec cli-args args flags))
-        :else              (recur cmdspec cli-args (conj args arg) flags)))))
-
-(defn default-flags [flagpairs]
+(defn add-defaults [init flagpairs]
   (reduce (fn [opts flagspec]
             (if-let [d (:default flagspec)]
               (if-let [h (:handler flagspec)]
-                (h opts (if (and (string? d) (:parse flagspec))
-                          ((:parse flagspec default-parse) d)
-                          d))
+                (binding [*opts* opts]
+                  (h opts (if (and (string? d) (:parse flagspec))
+                            ((:parse flagspec default-parse) d)
+                            d)))
                 (assoc opts (:key flagspec) d))
               opts))
-          {}
+          init
           (map second flagpairs)))
 
+(defn add-extra-flags
+  "We process flag information for easier use, this results in
+  `:flagpairs` (ordered sequence of pairs, mainly used in printing help
+  information), and `:flagmap` (for easy lookup), added to the `cmdspec`. As we
+  process arguments we may need to add additional flags, based on the current
+  subcommand. This function is used both for the top-level as for subcommand
+  handling of flags."
+  [cmdspec extra-flags]
+  (let [flagpairs (prepare-flagpairs extra-flags)
+        flagmap   (parse-flagstrs flagpairs)]
+    (-> cmdspec
+        (update :flagpairs (fn [fp]
+                             (into (vec fp)
+                                   ;; This prevents duplicates. Yes, this is not pretty. I'm very sorry.
+                                   (remove #((into #{} (map first) fp) (first %)))
+                                   flagpairs)))
+        (update :flagmap merge flagmap))))
+
+(defn split-flags
+  "Main processing loop, go over raw arguments, split into positional and flags,
+  building up an argument vector, and flag/options map."
+  [cmdspec cli-args init]
+  (loop [cmdspec          cmdspec
+         [arg & cli-args] cli-args
+         args             []
+         flags            init]
+    ;; Handle additional flags by nested commands
+    (let [extra-flags (cmd->flags cmdspec args)
+          flags       (add-defaults flags (prepare-flagpairs extra-flags))
+          cmdspec     (add-extra-flags cmdspec extra-flags)]
+      (cond
+        (nil? arg)
+        [cmdspec args flags]
+
+        (= "--" arg)
+        [cmdspec (into args cli-args) flags]
+
+        (and (= \- (first arg))
+             (not= 1 (count arg))) ; single dash is considered a positional argument
+        (let [[cli-args args flags] (handle-flag cmdspec arg cli-args args flags)]
+          (recur (dissoc cmdspec :flags) cli-args args flags))
+
+        :else
+        (recur (dissoc cmdspec :flags) cli-args (conj args (str/replace arg #"^\\(.)" (fn [[_ o]] o))) flags)))))
+
 (defn dispatch
+  "Main entry point for com.lambdaisland/cli.
+
+  Takes either a single var, or a map describing the commands and flags that
+  your CLI tool accepts. At a minimum it should contain either a `:command` or
+  `:commands`, optionally followed by a vector of positional command line
+  arguments (this second argument can generally be omitted, since we can access
+  these through [[*command-line-args*]]).
+
+  - `:name` Name of the script/command as used in the shell, used in the help text
+  - `:command` Function that implements your command logic, receives a map of
+    parsed CLI args. Can be a var, in which case additional configuration can be
+    done through var metadata.
+  - `:commands` Map or flat vector of command-string command-map pairs
+  - `:doc` Docstring, taken from `:command` if it is a var.
+  - `:flags` Map or flat vector of flag-string flag-map
+  - `:argnames` Vector of positional argument names, only needed on the top
+    level, for subcommands use the command-string to specify these.
+  - `:init` map or zero-arity function that provides the base options map, that
+    parsed flags and arguments are added onto
+
+  These flags can also be used in (sub)command maps, with the exception of
+  `:name`, `:argnames`, and `:init`.
+
+  A command-string consists of the name of the command, optionally followed by
+  any named positional argument, either in all-caps, or delineated by angle
+  brackets, e.g. `create <id> <name>` or `delete ID`.
+
+  A flag-string consists of command separated short (single-dash) or
+  long (double-dash) flags, optionally followed by an argument name, either in
+  all-caps, or delineated by angle brackets. The flag and argument are separated
+  by either a space or an equals sign. e.g. `--input=<filename>`, `-o, --output
+  FILENAME`.
+
+  Flag-maps can contain
+  - `:doc` Docstring, used in the help text
+  - `:parse` Function that parses/coerces the flag argument from string.
+  - `:default` Default value, gets passed through `:parse` if it's a string.
+  - `:handler` Function that transforms the options map when this flag is
+    present. Zero-arity for boolean (no-argument) flag, one-arity for flags that
+    take an argument.
+  - `:middleware` Function or sequence of functions that will wrap the command
+    function if this flag is present.
+
+  This docstring is just a summary, see the `com.lambdaisland/cli` README for
+  details.
+   "
   ([cmdspec]
    (dispatch (to-cmdspec cmdspec) *command-line-args*))
-  ([{:keys [flags] :as cmdspec} cli-args]
-   (let [flagpairs                (prepare-flagpairs flags)
-         flagmap                  (parse-flagstrs flagpairs)
-         cmdspec                  (assoc cmdspec :flagpairs flagpairs :flagmap flagmap)
-         [cmdspec pos-args flags] (split-flags cmdspec cli-args)
+  ([{:keys [flags init] :as cmdspec} cli-args]
+   (let [init                     (if (or (fn? init) (var? init)) (init) init)
+         [cmdspec pos-args flags] (split-flags cmdspec cli-args init)
          flagpairs                (get cmdspec :flagpairs)]
-     (dispatch (merge (meta (:command cmdspec)) cmdspec)
-               pos-args
-               (merge (default-flags flagpairs) flags))))
+     (dispatch cmdspec pos-args flags)))
+  ;; Note: this three-arg version of dispatch is considered private, it's used
+  ;; for internal recursion on subcommands.
   ([{:keys        [commands doc argnames command flags flagpairs flagmap]
      :as          cmdspec
      program-name :name

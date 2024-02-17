@@ -4,6 +4,12 @@
 
 - Bind the options map to `cli/*opts*`, for easy access.
 - Show the default for a flag in the help text.
+- Add a docstring to the main entry point (`dispatch`)
+- Bind `*opts*` during flag handler execution
+
+## Fixed
+
+- Recognize `-` and `\\--foo` as positional args
 
 ## Changed
 
@@ -13,6 +19,8 @@
   default value through the parse function, rather than using it directly. Using
   the unparsed string form for the default is preferable over for instance using
   a keyword, since it leads to better help text rendering.
+- Improve and document the processing logic, especially when it comes to
+  subcommand flags with handler functions.
 
 # 0.3.19-alpha (2024-02-11 / d79ac0c)
 
