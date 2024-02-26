@@ -2,9 +2,11 @@
 
 ## Added
 
+- Allow a command spec to be just a function
+
 ## Fixed
 
-## Changed
+- Preserve command order in help text when using a vector
 
 # 0.4.24 (2024-02-17 / 5a1e316)
 

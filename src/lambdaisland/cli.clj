@@ -164,6 +164,9 @@
     (var? ?var)
     (assoc (meta ?var) :command ?var)
 
+    (fn? ?var)
+    {:command ?var}
+
     (var? (:command ?var))
     (merge (meta (:command ?var)) ?var)
 
@@ -171,7 +174,7 @@
     ?var))
 
 (defn prepare-cmdpairs [commands]
-  (let [m (if (vector? commands) (apply hash-map commands) commands)]
+  (let [m (if (vector? commands) (partition 2 commands) commands)]
     (map (fn [[k v]]
            (let [v (to-cmdspec v)
                  [[cmd] doc argnames] (parse-arg-names k)]
