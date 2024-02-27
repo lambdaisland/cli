@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- Remove debug call
 
 # 0.6.30 (2024-02-27 / c9696a0)
 

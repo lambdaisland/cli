@@ -102,7 +102,6 @@
       (assoc flags (:key flagspec) (:value flagspec)))
     flagspec))
   ([flags flagspec & args]
-   (prn flags flagspec args)
    (add-middleware
     (if-let [handler (:handler flagspec)]
       (apply call-handler handler flags args)
