@@ -1,3 +1,11 @@
+# Unreleased
+
+## Added
+
+## Fixed
+
+## Changed
+
 # 0.6.30 (2024-02-27 / c9696a0)
 
 ## Added
