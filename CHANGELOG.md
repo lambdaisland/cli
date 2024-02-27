@@ -2,9 +2,12 @@
 
 ## Added
 
-## Fixed
+- `-h` can now be used to get help, in addition to `--help`
 
 ## Changed
+
+- When encountering parse errors (invalid arguments), print a message and exit,
+  rather than throwing (which looks quite ugly from a bb script)
 
 # 0.5.27 (2024-02-26 / 28f559d)
 

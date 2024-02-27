@@ -82,7 +82,9 @@
         (desc cmdopts)]))))
 
 (defn parse-error! [& msg]
-  (throw (ex-info (str/join " " msg) {:type ::parse-error})))
+  (println "[FATAL]" (str/join " " msg))
+  (System/exit 1)
+  #_(throw (ex-info (str/join " " msg) {:type ::parse-error})))
 
 (defn add-middleware [opts {mw :middleware}]
   (let [mw (if (or (nil? mw) (sequential? mw)) mw [mw])]
@@ -100,6 +102,7 @@
       (assoc flags (:key flagspec) (:value flagspec)))
     flagspec))
   ([flags flagspec & args]
+   (prn flags flagspec args)
    (add-middleware
     (if-let [handler (:handler flagspec)]
       (apply call-handler handler flags args)
@@ -129,7 +132,7 @@
   (reduce
    (fn [[cli-args args flags] f]
      (let [[f arg] (str/split f #"=")]
-       (if-let [{:keys [argcnt value handler middleware parse] :as flagspec
+       (if-let [{:keys [argcnt flagstr value handler middleware parse] :as flagspec
                  :or {parse default-parse}} (get flagmap f)]
          (cond
            (or (nil? argcnt)
@@ -138,9 +141,13 @@
                             (assoc-flag flags flagspec)
                             (update-flag flags flagspec (fnil inc 0)))]
            (= 1 argcnt)
-           (if arg
+           (cond
+             arg
              [cli-args args (assoc-flag flags flagspec (parse arg))]
-             [(next cli-args) args (assoc-flag flags flagspec (parse (first cli-args)))])
+             (first cli-args)
+             [(next cli-args) args (assoc-flag flags flagspec (parse (first cli-args)))]
+             :else
+             (parse-error! flagstr "expects an argument, but no more positional arguments available."))
            :else
            [(drop argcnt cli-args) args (assoc-flag flags flagspec (map parse (take argcnt cli-args)))])
          (if strict?
@@ -231,7 +238,8 @@
         (merge flagopts)))))
 
 (defn parse-flagstrs [flagpairs]
-  (into {"--help" {:key :help :value true}}
+  (into {"-h" {:key :help :value true}
+         "--help" {:key :help :value true}}
         (comp
          (mapcat build-flagmap-entries)
          (map (juxt :flag identity)))
