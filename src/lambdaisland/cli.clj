@@ -413,6 +413,7 @@
     take an argument.
   - `:middleware` Function or sequence of functions that will wrap the command
     function if this flag is present.
+  - `:required` Boolean value to indicate if the flag is required.
 
   This docstring is just a summary, see the `com.lambdaisland/cli` README for
   details.
