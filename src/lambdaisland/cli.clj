@@ -1,5 +1,6 @@
 (ns lambdaisland.cli
-  (:require [clojure.string :as str]))
+  (:require [clojure.string :as str]
+            [clojure.set :as set]))
 
 ;; I've tried to be somewhat consistent with variable naming
 
@@ -60,7 +61,7 @@
       (let [has-short? (some short? (mapcat (comp :flags second) flagpairs))
             has-long?  (some long? (mapcat (comp :flags second) flagpairs))]
         (print-table
-         (for [[_ {:keys [flags argdoc] :as flagopts}] flagpairs]
+         (for [[_ {:keys [flags argdoc required] :as flagopts}] flagpairs]
            (let [short (some short? flags)
                  long (some long? flags)]
              [(str (cond
@@ -72,7 +73,9 @@
                      "")
                    long
                    argdoc)
-              (desc flagopts)]))))
+              (desc flagopts)
+              (if required "(required)" "")
+              ]))))
       (println))
     (print-table
      (for [[cmd cmdopts] command-pairs]
@@ -82,9 +85,7 @@
         (desc cmdopts)]))))
 
 (defn parse-error! [& msg]
-  (println "[FATAL]" (str/join " " msg))
-  (System/exit 1)
-  #_(throw (ex-info (str/join " " msg) {:type ::parse-error})))
+  (throw (ex-info (str/join " " msg) {:type ::parse-error})))
 
 (defn add-middleware [opts {mw :middleware}]
   (let [mw (if (or (nil? mw) (sequential? mw)) mw [mw])]
@@ -150,7 +151,7 @@
            :else
            [(drop argcnt cli-args) args (assoc-flag flags flagspec (map parse (take argcnt cli-args)))])
          (if strict?
-           (parse-error! "Unknown flag: " f)
+           (parse-error! "Unknown flag:" f)
            [cli-args args (update-flag flags {:key (keyword (str/replace f #"^-+" ""))} #(or arg ((fnil inc 0) %)))]))))
    [cli-args args flags]
    (if (re-find #"^-\w+" flag)
@@ -304,6 +305,71 @@
         :else
         (recur (dissoc cmdspec :flags) cli-args (conj args (str/replace arg #"^\\(.)" (fn [[_ o]] o))) (conj seen-prefixes args) flags)))))
 
+(defn missing-flags
+  "Return a set of required flags in `flagmap` not present in `opts`, or `nil` if
+  all required flags are present."
+  [flagmap opts]
+  (let [required    (->> flagmap vals (filter (comp true? :required)) (map :key) set)
+        received    (->> opts keys set)
+        missing (map (fn [key]
+                       (->> flagmap vals (map #(vector (:key %) (:flags %))) (into {}) key))
+                     (set/difference required received))]
+    (seq missing)))
+
+(defn dispatch*
+  ([cmdspec]
+   (dispatch* (to-cmdspec cmdspec) *command-line-args*))
+  ([{:keys [flags init] :as cmdspec} cli-args]
+   (let [init                     (if (or (fn? init) (var? init)) (init) init)
+         [cmdspec pos-args flags] (split-flags cmdspec cli-args init)
+         flagpairs                (get cmdspec :flagpairs)]
+     (dispatch* cmdspec pos-args flags)))
+  ;; Note: this three-arg version of dispatch* is considered private, it's used
+  ;; for internal recursion on subcommands.
+  ([{:keys        [commands doc argnames command flags flagpairs flagmap]
+     :as          cmdspec
+     program-name :name
+     :or          {program-name "cli"}}
+    pos-args opts]
+
+   (cond
+     command
+     (if (:help opts)
+       (print-help program-name doc [] flagpairs)
+       (binding [*opts* (-> opts
+                            (dissoc ::middleware)
+                            (assoc ::argv pos-args)
+                            (merge (zipmap argnames pos-args)))]
+         (if-let [missing (missing-flags flagmap opts)]
+           (parse-error! "Missing required flags:" (->> missing (map #(str/join " " %)) (str/join ", ")))
+           ((reduce #(%2 %1) command (::middleware opts)) *opts*))))
+
+     commands
+     (let [[cmd & pos-args] pos-args
+           pos-args         (vec pos-args)
+           cmd              (when cmd (first (str/split cmd #"[ =]")))
+           opts             (if cmd (update opts ::command (fnil conj []) cmd) opts)
+           command-pairs    (prepare-cmdpairs commands)
+           command-map      (into {} command-pairs)
+           command-match    (get command-map cmd)]
+
+       (cond
+         command-match
+         (dispatch* (assoc (merge (dissoc cmdspec :command :commands) command-match)
+                           :name (str program-name " " cmd)) pos-args opts)
+
+         (or (nil? command-match)
+             (nil? commands)
+             (:help opts))
+         (print-help program-name doc (for [[k v] command-pairs]
+                                        [k (if (:commands v)
+                                             (update v :commands prepare-cmdpairs)
+                                             v)])
+                     flagpairs)
+
+         :else
+         (parse-error! "Expected either :command or :commands key in" cmdspec))))))
+
 (defn dispatch
   "Main entry point for com.lambdaisland/cli.
 
@@ -351,55 +417,13 @@
   This docstring is just a summary, see the `com.lambdaisland/cli` README for
   details.
    "
-  ([cmdspec]
-   (dispatch (to-cmdspec cmdspec) *command-line-args*))
-  ([{:keys [flags init] :as cmdspec} cli-args]
-   (let [init                     (if (or (fn? init) (var? init)) (init) init)
-         [cmdspec pos-args flags] (split-flags cmdspec cli-args init)
-         flagpairs                (get cmdspec :flagpairs)]
-     (dispatch cmdspec pos-args flags)))
-  ;; Note: this three-arg version of dispatch is considered private, it's used
-  ;; for internal recursion on subcommands.
-  ([{:keys        [commands doc argnames command flags flagpairs flagmap]
-     :as          cmdspec
-     program-name :name
-     :or          {program-name "cli"}}
-    pos-args opts]
-   (cond
-     command
-     (if (:help opts)
-       (print-help program-name doc [] flagpairs)
-       (binding [*opts* (-> opts
-                            (dissoc ::middleware)
-                            (assoc ::argv pos-args)
-                            (merge (zipmap argnames pos-args)))]
-         ((reduce #(%2 %1) command (::middleware opts)) *opts*)))
-
-     commands
-     (let [[cmd & pos-args] pos-args
-           pos-args         (vec pos-args)
-           cmd              (when cmd (first (str/split cmd #"[ =]")))
-           opts             (if cmd (update opts ::command (fnil conj []) cmd) opts)
-           command-pairs    (prepare-cmdpairs commands)
-           command-map      (into {} command-pairs)
-           command-match    (get command-map cmd)]
-
-       (cond
-         command-match
-         (dispatch (assoc (merge (dissoc cmdspec :command :commands) command-match)
-                          :name (str program-name " " cmd)) pos-args opts)
-
-         (or (nil? command-match)
-             (nil? commands)
-             (:help opts))
-         (print-help program-name doc (for [[k v] command-pairs]
-                                        [k (if (:commands v)
-                                             (update v :commands prepare-cmdpairs)
-                                             v)])
-                     flagpairs)
-
-         :else
-         (parse-error! "Expected either :command or :commands key in" cmdspec))))))
+  [& args]
+  (try
+    (apply dispatch* args)
+    (catch Exception e
+      (binding [*out* *err*]
+        (println "[FATAL]" (.getMessage e)))
+      (System/exit 1))))
 
 
 ;;
