@@ -2,6 +2,8 @@
 
 ## Added
 
+- Added `:required` for `:flags`
+
 ## Fixed
 
 ## Changed

@@ -241,7 +241,7 @@ If you are explicit about which flags you accept, then you may prefer not to let
 you can set `:strict? true`. In this mode only explicitly configured flags are
 accepted, others throw an error.
 
-A final possibility is to set `:middleware` for a flag, this is a function or
+Another possibility is to set `:middleware` for a flag, this is a function or
 list of functions that get wrapped around the final command.
 
 ```clj
@@ -255,6 +255,18 @@ list of functions that get wrapped around the final command.
                           (fn [opts]
                             (binding [*format* :long]
                               (cmd opts))))]}]}]})
+```
+
+Finally, it's possible to set `:required`, to indicate for users that a flag
+must always be passed:
+
+```clj
+(cli/dispatch
+ {:command #'cli-test
+  :flags ["-v, --verbose" "Increases verbosity"
+          "--input FILE" "Specify the input file"
+          "--env=<dev|prod|staging>" {:doc "Select an environment"
+                                      :required true}] })
 ```
 
 ### Commands

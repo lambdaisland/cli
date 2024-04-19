@@ -2,60 +2,41 @@
   (:require
    [clojure.string :as str]
    [clojure.test :refer :all]
-   [lambdaisland.cli :as cli :refer :all]))
+   [lambdaisland.cli :as cli]))
 
-;; (deftest flagstr-parsing-test
-;;   (is (= {"--help"              {:key :help :value true}
-;;           "-C"                  {:flag        "-C"
-;;                                  :key         :C
-;;                                  :argcnt      0
-;;                                  :short?      true
-;;                                  :description "Change working directory"}
-;;           "-v"                  {:flag        "-v"
-;;                                  :key         :verbose
-;;                                  :argcnt      0
-;;                                  :short?      true
-;;                                  :description "Increase verbosity"}
-;;           "--verbose"           {:flag        "--verbose"
-;;                                  :key         :verbose
-;;                                  :argcnt      0
-;;                                  :description "Increase verbosity"}
-;;           "-i"                  {:flag        "-i"
-;;                                  :key         :input
-;;                                  :argcnt      1
-;;                                  :short?      true
-;;                                  :args        [:input-file]
-;;                                  :description "Set input file"}
-;;           "--input"             {:flag        "--input"
-;;                                  :key         :input
-;;                                  :argcnt      1
-;;                                  :args        [:input-file]
-;;                                  :description "Set input file"}
-;;           "--output"            {:flag        "--output"
-;;                                  :key         :output
-;;                                  :argcnt      1
-;;                                  :args        [:output-file]
-;;                                  :description "Set output file"}
-;;           "--capture-output"    {:flag        "--capture-output"
-;;                                  :key         :capture-output
-;;                                  :argcnt      0
-;;                                  :value       true
-;;                                  :description "Enable/disable output capturing"}
-;;           "--no-capture-output" {:flag        "--no-capture-output"
-;;                                  :key         :capture-output
-;;                                  :argcnt      0
-;;                                  :value       false
-;;                                  :description "Enable/disable output capturing"}}
-;;          (parse-flagstrs ["-C" "Change working directory"
-;;                           "-v, --verbose" "Increase verbosity"
-;;                           "-i, --input INPUT-FILE" {:description "Set input file"}
-;;                           "--output=<output-file>" {:description "Set output file"}
-;;                           "--[no-]capture-output" "Enable/disable output capturing"] ))))
+(defn cmdspec-1
+  "Builds a cmdspec with a single command."
+  [required]
+  {:command #'identity
+   :flags   ["-x" {:doc      "flag x"
+                   :required required}]})
 
-;; (deftest command-argument-parsing
-;;   (is (= {"run" {:description "Run the thing" :argnames []}
-;;           "remove" {:description "remove with id" :argnames [:id]}
-;;           "add" {:description "Add with id" :argnames [:id]}}
-;;          (prepare-cmdmap ["run" {:description "Run the thing"}
-;;                           "add ID" {:description "Add with id"}
-;;                           "remove <id>" {:description "remove with id"}]))))
+(defn cmdspec-n
+  "Builds a cmdspec with multiple commands."
+  [required]
+  {:commands ["run" {:command #'identity
+                     :flags   ["-x" {:doc      "flag x"
+                                     :required required}]}]})
+
+(deftest required-flag
+  (testing "successful exit"
+    (are [input args expected]
+        (is (= expected (cli/dispatch* input args)))
+      (cmdspec-1 false) []           {:lambdaisland.cli/argv []}
+      (cmdspec-1 true)  ["-x"]       {:lambdaisland.cli/argv [] :x 1}
+      (cmdspec-n false) ["run"]      {:lambdaisland.cli/argv [] :lambdaisland.cli/command ["run"]}
+      (cmdspec-n true)  ["run" "-x"] {:lambdaisland.cli/argv [] :lambdaisland.cli/command ["run"] :x 1}))
+
+  (testing "help exit"
+    (are [input args expected]
+        (is (= expected (with-out-str (cli/dispatch* input args))))
+      (cmdspec-1 false) ["-h"]        "Usage: cli [-x] [<args>...]\n\n  -x,    flag x   \n\n"
+      (cmdspec-1 true)  ["-hx"]       "Usage: cli [-x] [<args>...]\n\n  -x,    flag x   (required)\n\n"
+      (cmdspec-n false) ["run" "-h"]  "Usage: cli run [-x] [<args>...]\n\nReturns its argument.\n\n  -x,    flag x   \n\n"
+      (cmdspec-n true)  ["run" "-hx"] "Usage: cli run [-x] [<args>...]\n\nReturns its argument.\n\n  -x,    flag x   (required)\n\n"))
+
+  (testing "unsuccessful exit"
+    (are [input args expected]
+        (is (thrown-with-msg? Exception expected (cli/dispatch* input args)))
+      (cmdspec-1 true) []      #"Missing required flags: -x"
+      (cmdspec-n true) ["run"] #"Missing required flags: -x")))
