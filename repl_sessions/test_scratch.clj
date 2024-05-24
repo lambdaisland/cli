@@ -1,5 +1,6 @@
-(ns test-scratch
-  (:require  [clojure.test :as t]))
+(ns lambdaisland.cli.test-scratch
+  (:require
+   [lambdaisland.cli :as cli]))
 
 
 
@@ -226,3 +227,8 @@
 
 ;;   :flags
 ;;   ["-v,--verbose" {:description "Increase verbosity"}]})
+
+(def s
+  {:commands ["foo ARG" {:commands ["baz" prn]}]})
+
+(cli/dispatch* s ["foo" "XXX" "baz"])

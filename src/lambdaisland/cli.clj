@@ -338,7 +338,7 @@
        (print-help program-name doc [] flagpairs)
        (binding [*opts* (-> opts
                             (dissoc ::middleware)
-                            (assoc ::argv pos-args)
+                            (update ::argv (fnil into []) pos-args)
                             (merge (zipmap argnames pos-args)))]
          (if-let [missing (missing-flags flagmap opts)]
            (parse-error! "Missing required flags:" (->> missing (map #(str/join " " %)) (str/join ", ")))
@@ -350,13 +350,22 @@
            cmd              (when cmd (first (str/split cmd #"[ =]")))
            opts             (if cmd (update opts ::command (fnil conj []) cmd) opts)
            command-pairs    (prepare-cmdpairs commands)
-           command-map      (into {} command-pairs)
-           command-match    (get command-map cmd)]
-
+           command-map      (update-keys (into {} command-pairs)
+                                         #(first (str/split % #"[ =]")))
+           command-match    (get command-map cmd)
+           argnames         (:argnames command-match)
+           arg-count        (count argnames)]
        (cond
          command-match
-         (dispatch* (assoc (merge (dissoc cmdspec :command :commands) command-match)
-                           :name (str program-name " " cmd)) pos-args opts)
+         (dispatch*
+          (-> cmdspec
+              (dissoc :command :commands)
+              (merge command-match)
+              (assoc :name (str program-name " " cmd)))
+          (drop arg-count pos-args)
+          (-> opts
+              (update ::argv (fnil into []) (take arg-count pos-args))
+              (merge (zipmap argnames pos-args))))
 
          (or (nil? command-match)
              (nil? commands)

@@ -3,10 +3,7 @@
 ## Added
 
 - Added `:required` for `:flags`
-
-## Fixed
-
-## Changed
+- Support commands with arguments and subcommands at the same time
 
 # 0.7.33 (2024-02-27 / cb19704)
 
