@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
-## Fixed
-
 ## Changed
+
+- Exit with error message if conditional arguments are missing
 
 # 0.8.39 (2024-05-24 / e967e9c)
 

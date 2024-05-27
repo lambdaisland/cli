@@ -42,10 +42,13 @@
 (defn long? [f]
   (re-find #"^--.*" f))
 
-(defn print-help [cmd-name doc command-pairs flagpairs]
+(defn print-help [cmd-name doc command-pairs argnames flagpairs]
   (let [desc #(str (first (str/split (:doc % "") #"\R"))
                    (when-let [d (:default %)] (str " (default " (pr-str d) ")")))]
     (println (str "Usage: " cmd-name
+                  (when (seq argnames)
+                    (str/join (for [n argnames]
+                                (str " <" (name n) ">"))))
                   (str/join (for [[_ {:keys [flags argdoc]}] flagpairs]
                               (str " [" (str/join " | " flags) argdoc "]")))
                   (when (seq command-pairs)
@@ -334,8 +337,8 @@
 
    (cond
      command
-     (if (:help opts)
-       (print-help program-name doc [] flagpairs)
+     (if (or (:help opts) (< (count pos-args) (count argnames)))
+       (print-help program-name doc [] argnames flagpairs)
        (binding [*opts* (-> opts
                             (dissoc ::middleware)
                             (update ::argv (fnil into []) pos-args)
@@ -374,6 +377,7 @@
                                         [k (if (:commands v)
                                              (update v :commands prepare-cmdpairs)
                                              v)])
+                     argnames
                      flagpairs)
 
          :else
