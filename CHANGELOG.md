@@ -1,3 +1,11 @@
+# Unreleased
+
+## Added
+
+## Fixed
+
+## Changed
+
 # 0.11.48 (2024-05-27 / d98625f)
 
 ## Fixed
