@@ -2,9 +2,8 @@
 
 ## Added
 
-## Fixed
-
-## Changed
+- Better help messages: say why we are showing the help (no such command,
+  missing positional args)
 
 # 0.9.42 (2024-05-27 / 3b81e73)
 

@@ -306,7 +306,11 @@
           (recur (dissoc cmdspec :flags) cli-args args (conj seen-prefixes args) flags))
 
         :else
-        (recur (dissoc cmdspec :flags) cli-args (conj args (str/replace arg #"^\\(.)" (fn [[_ o]] o))) (conj seen-prefixes args) flags)))))
+        (recur (dissoc cmdspec :flags)
+               cli-args
+               (conj args (str/replace arg #"^\\(.)" (fn [[_ o]] o)))
+               (conj seen-prefixes args)
+               flags)))))
 
 (defn missing-flags
   "Return a set of required flags in `flagmap` not present in `opts`, or `nil` if
@@ -337,7 +341,7 @@
 
    (cond
      command
-     (if (or (:help opts) (< (count pos-args) (count argnames)))
+     (if (:help opts)
        (print-help program-name doc [] argnames flagpairs)
        (binding [*opts* (-> opts
                             (dissoc ::middleware)
@@ -359,7 +363,8 @@
            argnames         (:argnames command-match)
            arg-count        (count argnames)]
        (cond
-         command-match
+         (and command-match
+              (<= arg-count (count pos-args)))
          (dispatch*
           (-> cmdspec
               (dissoc :command :commands)
@@ -372,13 +377,25 @@
 
          (or (nil? command-match)
              (nil? commands)
-             (:help opts))
-         (print-help program-name doc (for [[k v] command-pairs]
-                                        [k (if (:commands v)
-                                             (update v :commands prepare-cmdpairs)
-                                             v)])
-                     argnames
-                     flagpairs)
+             (:help opts)
+             (< (count pos-args) arg-count))
+         (do
+           (cond
+             (or (nil? command-match) (nil? commands))
+             (println "No matching command found:" cmd "\n")
+             (< (count pos-args) arg-count)
+             (println "Positional arguments missing:"
+                      (->> argnames
+                           (drop (count pos-args))
+                           (map #(str "<" (name %) ">"))
+                           (str/join " "))
+                      "\n"))
+           (print-help program-name doc (for [[k v] command-pairs]
+                                          [k (if (:commands v)
+                                               (update v :commands prepare-cmdpairs)
+                                               v)])
+                       argnames
+                       flagpairs))
 
          :else
          (parse-error! "Expected either :command or :commands key in" cmdspec))))))
