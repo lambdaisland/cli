@@ -1,10 +1,14 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
+- Show correct help for subcommands
+
 ## Changed
+
+- Change the help layout to be man-page style
+- When catching a top-level exception, print the ex-data (if any)
+- Use the `:exit` in the ex-data as exit code (1 otherwise)
 
 # 0.10.45 (2024-05-27 / 025991c)
 
