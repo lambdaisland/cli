@@ -45,7 +45,12 @@
 (defn print-help [cmd-name doc command-pairs argnames flagpairs]
   (let [desc #(str (first (str/split (:doc % "") #"\R"))
                    (when-let [d (:default %)] (str " (default " (pr-str d) ")")))]
-    (println (str "Usage: " cmd-name
+    (println "NAME")
+    (println " " cmd-name " — " (first (str/split doc #"\R")))
+    (println)
+
+    (println "SYNOPSIS")
+    (println (str "  " cmd-name
                   (when (seq argnames)
                     (str/join (for [n argnames]
                                 (str " <" (name n) ">"))))
@@ -57,12 +62,14 @@
                          "]"))
                   " [<args>...]"))
     (println)
-    (when doc
-      (println doc)
+    (when-let [doc (next (str/split doc #"\R"))]
+      (println "DESCRIPTION")
+      (println (str/join "\n" (drop-while #(str/blank? %) doc)))
       (println))
     (when (seq flagpairs)
       (let [has-short? (some short? (mapcat (comp :flags second) flagpairs))
             has-long?  (some long? (mapcat (comp :flags second) flagpairs))]
+        (println "FLAGS")
         (print-table
          (for [[_ {:keys [flags argdoc required] :as flagopts}] flagpairs]
            (let [short (some short? flags)
@@ -80,12 +87,14 @@
               (if required "(required)" "")
               ]))))
       (println))
-    (print-table
-     (for [[cmd cmdopts] command-pairs]
-       [(str cmd (if (:commands cmdopts)
-                   (str " <" (str/join "|" (map first (:commands cmdopts))) ">")
-                   (:argdoc cmdopts)))
-        (desc cmdopts)]))))
+    (when (seq command-pairs)
+      (println "POSITIONAL ARGUMENTS")
+      (print-table
+       (for [[cmd cmdopts] command-pairs]
+         [(str cmd (if (:commands cmdopts)
+                     (str " <" (str/join "|" (map first (:commands cmdopts))) ">")
+                     (:argdoc cmdopts)))
+          (desc cmdopts)])))))
 
 (defn parse-error! [& msg]
   (throw (ex-info (str/join " " msg) {:type ::parse-error})))
@@ -381,7 +390,7 @@
              (< (count pos-args) arg-count))
          (do
            (cond
-             (or (nil? command-match) (nil? commands))
+             (and cmd (or (nil? command-match) (nil? commands)))
              (println "No matching command found:" cmd "\n")
              (< (count pos-args) arg-count)
              (println "Positional arguments missing:"
@@ -390,12 +399,27 @@
                            (map #(str "<" (name %) ">"))
                            (str/join " "))
                       "\n"))
-           (print-help program-name doc (for [[k v] command-pairs]
-                                          [k (if (:commands v)
-                                               (update v :commands prepare-cmdpairs)
-                                               v)])
-                       argnames
-                       flagpairs))
+           (if cmd
+             (print-help (str program-name " " cmd)
+                         (if command-match
+                           (:doc command-match)
+                           doc)
+                         (for [[k v] (if command-match
+                                       (-> command-match :commands prepare-cmdpairs)
+                                       command-pairs)]
+                           [k (if (:commands v)
+                                (update v :commands prepare-cmdpairs)
+                                v)])
+                         argnames
+                         flagpairs)
+             (print-help program-name
+                         doc
+                         (for [[k v] command-pairs]
+                           [k (if (:commands v)
+                                (update v :commands prepare-cmdpairs)
+                                v)])
+                         argnames
+                         flagpairs)))
 
          :else
          (parse-error! "Expected either :command or :commands key in" cmdspec))))))
@@ -453,8 +477,10 @@
     (apply dispatch* args)
     (catch Exception e
       (binding [*out* *err*]
-        (println "[FATAL]" (.getMessage e)))
-      (System/exit 1))))
+        (println "[FATAL]" (.getMessage e))
+        (if-let [d (ex-data e)]
+          (clojure.pprint/pprint d)))
+      (System/exit (:exit (ex-data e) 1)))))
 
 
 ;;
