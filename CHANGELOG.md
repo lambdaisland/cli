@@ -1,3 +1,11 @@
+# Unreleased
+
+## Added
+
+## Fixed
+
+## Changed
+
 # 0.10.45 (2024-05-27 / 025991c)
 
 ## Added
