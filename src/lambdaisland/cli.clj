@@ -46,7 +46,7 @@
   (let [desc #(str (first (str/split (:doc % "") #"\R"))
                    (when-let [d (:default %)] (str " (default " (pr-str d) ")")))]
     (println "NAME")
-    (println " " cmd-name " — " (first (str/split doc #"\R")))
+    (println " " cmd-name (if (str/blank? doc) "" (str " — " (first (str/split doc #"\R")))))
     (println)
 
     (println "SYNOPSIS")
@@ -61,15 +61,14 @@
                          (str/join " | " (map first command-pairs))
                          "]"))
                   " [<args>...]"))
-    (println)
-    (when-let [doc (next (str/split doc #"\R"))]
-      (println "DESCRIPTION")
-      (println (str/join "\n" (drop-while #(str/blank? %) doc)))
-      (println))
+    (when-let [doc (and (not (str/blank? doc))
+                        (next (str/split doc #"\R")))]
+      (println "\nDESCRIPTION")
+      (println (str/join "\n" (drop-while #(str/blank? %) doc))))
     (when (seq flagpairs)
       (let [has-short? (some short? (mapcat (comp :flags second) flagpairs))
             has-long?  (some long? (mapcat (comp :flags second) flagpairs))]
-        (println "FLAGS")
+        (println "\nFLAGS")
         (print-table
          (for [[_ {:keys [flags argdoc required] :as flagopts}] flagpairs]
            (let [short (some short? flags)
@@ -85,10 +84,9 @@
                    argdoc)
               (desc flagopts)
               (if required "(required)" "")
-              ]))))
-      (println))
+              ])))))
     (when (seq command-pairs)
-      (println "POSITIONAL ARGUMENTS")
+      (println "\nPOSITIONAL ARGUMENTS")
       (print-table
        (for [[cmd cmdopts] command-pairs]
          [(str cmd (if (:commands cmdopts)
