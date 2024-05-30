@@ -1,11 +1,11 @@
 # Unreleased
 
-## Added
-
-## Fixed
-
 ## Changed
 
+- When catching a top-level exception, print the ex-data, if any
+- If the ex-data contains an `:exit` key, use that as exit code instead of 1
+- Rework the help layout be more man-page-like
+    
 # 0.11.48 (2024-05-27 / d98625f)
 
 ## Fixed
