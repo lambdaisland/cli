@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.lambdaisland</groupId>
   <artifactId>cli</artifactId>
-  <version>0.11.48</version>
+  <version>0.12.53</version>
   <name>cli</name>
   <description>Command line parser with good subcommand and help handling</description>
   <url>https://github.com/lambdaisland/cli</url>
@@ -25,13 +25,13 @@
     <url>https://github.com/lambdaisland/cli</url>
     <connection>scm:git:git://github.com/lambdaisland/cli.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/lambdaisland/cli.git</developerConnection>
-    <tag>aa57c45ea683acf4fddcfc5d0cf1a79e27365bff</tag>
+    <tag>dfa7682693e9dbe9b90a3137205c49915c9955ec</tag>
   </scm>
   <dependencies>
     <dependency>
       <groupId>org.clojure</groupId>
       <artifactId>clojure</artifactId>
-      <version>1.11.1</version>
+      <version>1.11.3</version>
     </dependency>
   </dependencies>
   <build>
@@ -61,7 +61,7 @@
         <configuration>
           <archive>
             <manifestEntries>
-              <git-revision>aa57c45ea683acf4fddcfc5d0cf1a79e27365bff</git-revision>
+              <git-revision>dfa7682693e9dbe9b90a3137205c49915c9955ec</git-revision>
             </manifestEntries>
           </archive>
         </configuration>
