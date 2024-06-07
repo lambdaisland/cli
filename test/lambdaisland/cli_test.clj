@@ -17,11 +17,6 @@
   {:commands ["run" {:command #'identity
                      :flags   ["-x" {:doc      "flag x"
                                      :required required}]}]})
-(with-out-str (cli/dispatch* (cmdspec-n false) ["run" "-hx"]))
-
-"NAME\n  cli run  — Returns its argument.\n\nSYNOPSIS\n  cli run [-x] [<args>...]\n\nFLAGS\n  -x,    flag x   (required)\n"
-"NAME\n  cli run  — Returns its argument.\n\nSYNOPSIS\n  cli run [-x] [<args>...]\n\nFLAGS\n  -x,    flag x   (required)\n"
-;; =>
 
 (deftest required-flag
   (testing "successful exit"
@@ -37,8 +32,8 @@
         (is (= expected (with-out-str (cli/dispatch* input args))))
       (cmdspec-1 false) ["-h"]        "NAME\n  cli \n\nSYNOPSIS\n  cli [-x] [<args>...]\n\nFLAGS\n  -x,    flag x   \n"
       (cmdspec-1 true)  ["-hx"]       "NAME\n  cli \n\nSYNOPSIS\n  cli [-x] [<args>...]\n\nFLAGS\n  -x,    flag x   (required)\n"
-      (cmdspec-n false) ["run" "-h"]  "NAME\n  cli run  — Returns its argument.\n\nSYNOPSIS\n  cli run [-x] [<args>...]\n\nFLAGS\n  -x,    flag x   \n"
-      (cmdspec-n true)  ["run" "-hx"] "NAME\n  cli run  — Returns its argument.\n\nSYNOPSIS\n  cli run [-x] [<args>...]\n\nFLAGS\n  -x,    flag x   (required)\n"))
+      (cmdspec-n false) ["run" "-h"]  "NAME\n  cli run  ——  Returns its argument.\n\nSYNOPSIS\n  cli run [-x] [<args>...]\n\nFLAGS\n  -x,    flag x   \n"
+      (cmdspec-n true)  ["run" "-hx"] "NAME\n  cli run  ——  Returns its argument.\n\nSYNOPSIS\n  cli run [-x] [<args>...]\n\nFLAGS\n  -x,    flag x   (required)\n"))
 
   (testing "unsuccessful exit"
     (are [input args expected]
