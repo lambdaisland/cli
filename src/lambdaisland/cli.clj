@@ -44,9 +44,11 @@
 
 (defn print-help [cmd-name doc command-pairs argnames flagpairs]
   (let [desc #(str (first (str/split (:doc % "") #"\R"))
-                   (when-let [d (:default %)] (str " (default " (pr-str d) ")")))]
+                   (when-let [d (:default %)] (str " (default " (pr-str d) ")")))
+        doc-lines (when-not (str/blank? doc)
+                    (str/split doc #"\R"))]
     (println "NAME")
-    (println " " cmd-name (if (str/blank? doc) "" (str " — " (first (str/split doc #"\R")))))
+    (println " " cmd-name (if doc-lines (str " ——  " (first doc-lines)) ""))
     (println)
 
     (println "SYNOPSIS")
@@ -61,10 +63,9 @@
                          (str/join " | " (map first command-pairs))
                          "]"))
                   " [<args>...]"))
-    (when-let [doc (and (not (str/blank? doc))
-                        (next (str/split doc #"\R")))]
+    (when-let [doc (next doc-lines)]
       (println "\nDESCRIPTION")
-      (println (str/join "\n" (drop-while #(str/blank? %) doc))))
+      (println " " (str/join "\n  " (map str/trim (drop-while #(str/blank? %) doc)))))
     (when (seq flagpairs)
       (let [has-short? (some short? (mapcat (comp :flags second) flagpairs))
             has-long?  (some long? (mapcat (comp :flags second) flagpairs))]
@@ -383,12 +384,11 @@
               (merge (zipmap argnames pos-args))))
 
          (or (nil? command-match)
-             (nil? commands)
              (:help opts)
              (< (count pos-args) arg-count))
          (do
            (cond
-             (and cmd (or (nil? command-match) (nil? commands)))
+             (and cmd (nil? command-match))
              (println "No matching command found:" cmd "\n")
              (< (count pos-args) arg-count)
              (println "Positional arguments missing:"
@@ -398,7 +398,8 @@
                            (str/join " "))
                       "\n"))
            (if cmd
-             (print-help (str program-name " " cmd)
+             (print-help (str program-name (when-not (nil? command-match)
+                                             (str " " cmd)))
                          (if command-match
                            (:doc command-match)
                            doc)
