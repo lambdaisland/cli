@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- Fix generated help text when subcommand is not recognized
 
 # 0.12.53 (2024-05-30 / 7b52e6d)
 
