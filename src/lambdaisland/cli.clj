@@ -244,7 +244,8 @@
     (map (fn [[flagstr flagopts]]
            (let [flagopts (if (var? flagopts)
                             {:doc (:doc (meta flagopts))
-                             :handler flagopts})]
+                             :handler flagopts}
+                            flagopts)]
              [flagstr (parse-flagstr flagstr (if (string? flagopts) {:doc flagopts} flagopts))]))
          (coerce-to-pairs flagstrs))))
 
