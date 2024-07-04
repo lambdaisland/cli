@@ -51,7 +51,8 @@
           {:doc        "Use long format"
            }]}]
   :flags
-  ["-s, --silent" "Shut up"]})
+  ["-s, --silent" "Shut up"
+   "-x" {:required true}]})
 #_
 (cli/dispatch
  {:name    "cli-test"

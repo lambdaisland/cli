@@ -87,7 +87,7 @@
               (if required "(required)" "")
               ])))))
     (when (seq command-pairs)
-      (println "\nPOSITIONAL ARGUMENTS")
+      (println "\nSUBCOMMANDS")
       (print-table
        (for [[cmd cmdopts] command-pairs]
          [(str cmd (if (:commands cmdopts)
@@ -98,37 +98,46 @@
 (defn parse-error! [& msg]
   (throw (ex-info (str/join " " msg) {:type ::parse-error})))
 
-(defn add-middleware [opts {mw :middleware}]
-  (let [mw (if (or (nil? mw) (sequential? mw)) mw [mw])]
-    (update opts ::middleware (fnil into []) mw)))
+(defn add-middleware* [opts mw]
+  (update opts ::middleware (fnil into []) mw))
 
-(defn call-handler [handler flags & args]
-  (binding [*opts* flags]
-    (apply handler flags args)))
+(defn add-middleware [opts {mw :middleware}]
+  (add-middleware*
+   opts
+   (if (or (nil? mw) (sequential? mw)) mw [mw])))
+
+(defn call-handler [handler opts & args]
+  (binding [*opts* opts]
+    (apply handler opts args)))
 
 (defn assoc-flag
-  ([flags flagspec]
-   (add-middleware
-    (if-let [handler (:handler flagspec)]
-      (call-handler handler flags)
-      (assoc flags (:key flagspec) (:value flagspec)))
-    flagspec))
-  ([flags flagspec & args]
-   (add-middleware
-    (if-let [handler (:handler flagspec)]
-      (apply call-handler handler flags args)
-      (assoc flags (:key flagspec)
-             (if (= 1 (count args))
-               (first args)
-               (vec args))))
-    flagspec)))
-
-(defn update-flag [flags flagspec f & args]
-  (add-middleware
-   (if-let [handler (:handler flagspec)]
-     (apply call-handler handler flags args)
-     (apply update flags (:key flagspec) f args))
-   flagspec))
+  ([opts {:keys [middleware handler] :as flagspec} & args]
+   (let [mw (cond
+              (nil? middleware)
+              []
+              (sequential? middleware)
+              (vec middleware)
+              :else
+              [middleware])]
+     (add-middleware*
+      opts
+      (conj mw
+            (fn [cmd]
+              (fn [opts]
+                (cmd
+                 (if handler
+                   (apply call-handler handler opts args)
+                   (assoc opts
+                          (:key flagspec)
+                          (cond
+                            (= 0 (count args))
+                            (if (contains? flagspec :value)
+                              (:value flagspec)
+                              ((fnil inc 0) (get opts (:key flagspec))))
+                            (= 1 (count args))
+                            (first args)
+                            :else
+                            (vec args))))))))))))
 
 (defn default-parse [s]
   (cond
@@ -148,9 +157,7 @@
          (cond
            (or (nil? argcnt)
                (= 0 argcnt))
-           [cli-args args (if (:value flagspec)
-                            (assoc-flag flags flagspec)
-                            (update-flag flags flagspec (fnil inc 0)))]
+           [cli-args args (assoc-flag flags flagspec)]
            (= 1 argcnt)
            (cond
              arg
@@ -163,7 +170,14 @@
            [(drop argcnt cli-args) args (assoc-flag flags flagspec (map parse (take argcnt cli-args)))])
          (if strict?
            (parse-error! "Unknown flag:" f)
-           [cli-args args (update-flag flags {:key (keyword (str/replace f #"^-+" ""))} #(or arg ((fnil inc 0) %)))]))))
+           [cli-args args
+            (assoc-flag
+             flags
+             {:key (keyword (str/replace f #"^-+" ""))
+              :handler (fn [opts]
+                         (update opts
+                                 (keyword (str/replace f #"^-+" ""))
+                                 #(or arg ((fnil inc 0) %))))} )]))))
    [cli-args args flags]
    (if (re-find #"^-\w+" flag)
      (map #(str "-" %) (next flag))
@@ -228,7 +242,10 @@
 (defn prepare-flagpairs [flagstrs]
   (when (seq flagstrs)
     (map (fn [[flagstr flagopts]]
-           [flagstr (parse-flagstr flagstr (if (string? flagopts) {:doc flagopts} flagopts))])
+           (let [flagopts (if (var? flagopts)
+                            {:doc (:doc (meta flagopts))
+                             :handler flagopts})]
+             [flagstr (parse-flagstr flagstr (if (string? flagopts) {:doc flagopts} flagopts))]))
          (coerce-to-pairs flagstrs))))
 
 (defn build-flagmap-entries [[flagstr flagopts]]
@@ -331,6 +348,21 @@
                      (set/difference required received))]
     (seq missing)))
 
+(defn help-mw [{:keys [name doc argnames flagpairs]
+                :or   {name "cli"}}]
+  (fn [cmd]
+    (fn [opts]
+      (if (:help opts)
+        (print-help name doc [] argnames flagpairs)
+        (cmd opts)))))
+
+(defn missing-flags-mw [{:keys [flagmap]}]
+  (fn [cmd]
+    (fn [opts]
+      (if-let [missing (missing-flags flagmap opts)]
+        (parse-error! "Missing required flags:" (->> missing (map #(str/join " " %)) (str/join ", ")))
+        (cmd opts)))))
+
 (defn dispatch*
   ([cmdspec]
    (dispatch* (to-cmdspec cmdspec) *command-line-args*))
@@ -349,15 +381,15 @@
 
    (cond
      command
-     (if (:help opts)
-       (print-help program-name doc [] argnames flagpairs)
-       (binding [*opts* (-> opts
-                            (dissoc ::middleware)
-                            (update ::argv (fnil into []) pos-args)
-                            (merge (zipmap argnames pos-args)))]
-         (if-let [missing (missing-flags flagmap opts)]
-           (parse-error! "Missing required flags:" (->> missing (map #(str/join " " %)) (str/join ", ")))
-           ((reduce #(%2 %1) command (::middleware opts)) *opts*))))
+     (let [middleware (into [(missing-flags-mw cmdspec)
+                             (help-mw cmdspec)]
+                            (::middleware opts))
+           opts (-> opts
+                    (dissoc ::middleware)
+                    (update ::argv (fnil into []) pos-args)
+                    (merge (zipmap argnames pos-args)))]
+       (binding [*opts* opts]
+         ((reduce #(%2 %1) command middleware) opts)))
 
      commands
      (let [[cmd & pos-args] pos-args
@@ -381,7 +413,10 @@
           (drop arg-count pos-args)
           (-> opts
               (update ::argv (fnil into []) (take arg-count pos-args))
-              (merge (zipmap argnames pos-args))))
+              (merge (when-let [i (:init cmdspec)]
+                       (if (or (fn? i) (var? i)) (i) i)))
+              (merge (zipmap argnames pos-args))
+              ))
 
          (or (nil? command-match)
              (:help opts)
@@ -462,7 +497,7 @@
   - `:parse` Function that parses/coerces the flag argument from string.
   - `:default` Default value, gets passed through `:parse` if it's a string.
   - `:handler` Function that transforms the options map when this flag is
-    present. Zero-arity for boolean (no-argument) flag, one-arity for flags that
+    present. Single-arity for boolean (no-argument) flag, two-arity for flags that
     take an argument.
   - `:middleware` Function or sequence of functions that will wrap the command
     function if this flag is present.

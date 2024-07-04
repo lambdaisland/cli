@@ -2,9 +2,10 @@
 
 ## Added
 
-## Fixed
-
-## Changed
+- Allow `:init` also on nested subcommands, gets merged into top level init.
+  Flags are processed afterwards, so this is good way to set initial data that
+  flags can filter/change
+- Flags handlers can now be specified directly as vars, the docstring is used as flag doc
 
 # 0.13.58 (2024-06-07 / 09cd1f9)
 
