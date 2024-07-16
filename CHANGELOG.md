@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- Make sure `cli/*opts*` reflects what the main command receives
 
 # 0.14.62 (2024-07-04 / 8a515f3)
 

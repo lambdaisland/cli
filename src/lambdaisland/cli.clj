@@ -364,6 +364,12 @@
         (parse-error! "Missing required flags:" (->> missing (map #(str/join " " %)) (str/join ", ")))
         (cmd opts)))))
 
+(defn bind-opts-mw []
+  (fn [cmd]
+    (fn [opts]
+      (binding [*opts* opts]
+        (cmd opts)))))
+
 (defn dispatch*
   ([cmdspec]
    (dispatch* (to-cmdspec cmdspec) *command-line-args*))
@@ -382,7 +388,8 @@
 
    (cond
      command
-     (let [middleware (into [(missing-flags-mw cmdspec)
+     (let [middleware (into [(bind-opts-mw)
+                             (missing-flags-mw cmdspec)
                              (help-mw cmdspec)]
                             (::middleware opts))
            opts (-> opts
