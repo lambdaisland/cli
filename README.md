@@ -188,6 +188,9 @@ At this point a few things are worth calling out.
   as a positional argument rather than a flag. Note that the shell does its own
   backspace (character escape) handling, so in practice this means prefixing
   with two backslashes, e.g. `\\--foo`.
+- For flags that are expected to be passed multiple times, e.g. `-u foo -u bar`,
+  set `:coll? true`, in that case you will always receive them as a vector, even
+  if there is only one.
 
 You can also explicitly set which key to use with `:key`, as well as setting a
 specific `:value`, for instance:
@@ -268,6 +271,16 @@ must always be passed:
           "--env=<dev|prod|staging>" {:doc "Select an environment"
                                       :required true}] })
 ```
+
+#### Flag option reference
+
+- `:doc` docstring
+- `:default` default value
+- `:value` value to be associated with the key (for flags that don't take arguments)
+- `:handler` handler function, `(fn [opts & flag-args] ,,,)` 
+- `:middelware` functions which wrap the final command handler
+- `:coll?` flag can be specified  multiple times, will result in a vector 
+- `:parse` function used to coerce the flag argument
 
 ### Commands
 

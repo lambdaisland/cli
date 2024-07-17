@@ -2,6 +2,9 @@
 
 ## Added
 
+- Added `:coll?` flagopt for flags that can be specified multiple times
+- Correctly print multiline flag docstrings
+
 ## Fixed
 
 ## Changed

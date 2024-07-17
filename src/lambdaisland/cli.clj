@@ -71,21 +71,25 @@
             has-long?  (some long? (mapcat (comp :flags second) flagpairs))]
         (println "\nFLAGS")
         (print-table
-         (for [[_ {:keys [flags argdoc required] :as flagopts}] flagpairs]
-           (let [short (some short? flags)
-                 long (some long? flags)]
-             [(str (cond
-                     short
-                     (str short ", ")
-                     has-short?
-                     "    "
-                     :else
-                     "")
-                   long
-                   argdoc)
-              (desc flagopts)
-              (if required "(required)" "")
-              ])))))
+         (apply
+          concat
+          (for [[_ {:keys [flags argdoc doc required] :as flagopts}] flagpairs]
+            (let [short (some short? flags)
+                  long (some long? flags)]
+              (into [[(str (cond
+                             short
+                             (str short ", ")
+                             has-short?
+                             "    "
+                             :else
+                             "")
+                           long
+                           argdoc)
+                      (desc flagopts)
+                      (if required "(required)" "")]]
+                    (map (fn [l]
+                           ["" l ""]))
+                    (next (str/split doc #"\R")))))))))
     (when (seq command-pairs)
       (println "\nSUBCOMMANDS")
       (print-table
@@ -135,9 +139,13 @@
                               (:value flagspec)
                               ((fnil inc 0) (get opts (:key flagspec))))
                             (= 1 (count args))
-                            (first args)
+                            (if (:coll? flagspec)
+                              ((fnil conj []) (get opts (:key flagspec)) (first args))
+                              (first args))
                             :else
-                            (vec args))))))))))))
+                            (if (:coll? flagspec)
+                              ((fnil into []) (get opts (:key flagspec)) args)
+                              (vec args)))))))))))))
 
 (defn default-parse [s]
   (cond
