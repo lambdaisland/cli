@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- Add missing require for `clojure.pprint`
 
 # 0.16.68 (2024-07-17 / 3c1b328)
 

@@ -1,6 +1,8 @@
 (ns lambdaisland.cli
-  (:require [clojure.string :as str]
-            [clojure.set :as set]))
+  (:require
+   [clojure.string :as str]
+   [clojure.set :as set]
+   [clojure.pprint :as pprint]))
 
 ;; I've tried to be somewhat consistent with variable naming
 
@@ -529,7 +531,7 @@
       (binding [*out* *err*]
         (println "[FATAL]" (.getMessage e))
         (if-let [d (ex-data e)]
-          (clojure.pprint/pprint d)))
+          (pprint/pprint d)))
       (System/exit (:exit (ex-data e) 1)))))
 
 
