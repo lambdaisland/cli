@@ -204,7 +204,9 @@
 (defn to-cmdspec [?var]
   (cond
     (var? ?var)
-    (assoc (meta ?var) :command ?var)
+    (if (fn? @?var)
+      (assoc (meta ?var) :command ?var)
+      (merge (meta ?var) @?var))
 
     (fn? ?var)
     {:command ?var}

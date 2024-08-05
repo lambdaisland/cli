@@ -2,9 +2,7 @@
 
 ## Added
 
-## Fixed
-
-## Changed
+- Allow using a var that points to a map as a command specification
 
 # 0.17.71 (2024-07-24 / ac0239c)
 
