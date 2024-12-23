@@ -1,3 +1,11 @@
+# Unreleased
+
+## Added
+
+## Fixed
+
+## Changed
+
 # 0.19.78 (2024-12-23 / a1f884e)
 
 ## Added
