@@ -2,9 +2,10 @@
 
 ## Added
 
-## Fixed
-
-## Changed
+- Add provenance tracking, `:lambdaisland.cli/sources` is a map from options key
+  to human readable description of where that key came from, e.g. `--foo command
+  line flag`, or `positional command line argument idx=0`. See
+  [lambdaisland/config](https://github.com/lambdaisland/config) for a use case.
 
 # 0.18.74 (2024-08-05 / 14b74ba)
 

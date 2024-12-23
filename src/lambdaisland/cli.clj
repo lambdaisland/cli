@@ -133,21 +133,23 @@
                 (cmd
                  (if handler
                    (apply call-handler handler opts args)
-                   (assoc opts
-                          (:key flagspec)
-                          (cond
-                            (= 0 (count args))
-                            (if (contains? flagspec :value)
-                              (:value flagspec)
-                              ((fnil inc 0) (get opts (:key flagspec))))
-                            (= 1 (count args))
-                            (if (:coll? flagspec)
-                              ((fnil conj []) (get opts (:key flagspec)) (first args))
-                              (first args))
-                            :else
-                            (if (:coll? flagspec)
-                              ((fnil into []) (get opts (:key flagspec)) args)
-                              (vec args)))))))))))))
+                   (-> opts
+                       (assoc
+                         (:key flagspec)
+                         (cond
+                           (= 0 (count args))
+                           (if (contains? flagspec :value)
+                             (:value flagspec)
+                             ((fnil inc 0) (get opts (:key flagspec))))
+                           (= 1 (count args))
+                           (if (:coll? flagspec)
+                             ((fnil conj []) (get opts (:key flagspec)) (first args))
+                             (first args))
+                           :else
+                           (if (:coll? flagspec)
+                             ((fnil into []) (get opts (:key flagspec)) args)
+                             (vec args))))
+                       (assoc-in [::sources (:key flagspec)] (str (:flag flagspec) " command line flag"))))))))))))
 
 (defn default-parse [s]
   (cond
@@ -294,7 +296,9 @@
                   (h opts (if (and (string? d) (:parse flagspec))
                             ((:parse flagspec default-parse) d)
                             d)))
-                (assoc opts (:key flagspec) d))
+                (-> opts
+                    (assoc (:key flagspec) d)
+                    (assoc-in [::sources (:key flagspec)] (str (:flagstr flagspec) " (default value)"))))
               opts))
           init
           (map second flagpairs)))
@@ -436,7 +440,8 @@
               (merge (when-let [i (:init cmdspec)]
                        (if (or (fn? i) (var? i)) (i) i)))
               (merge (zipmap argnames pos-args))
-              ))
+              (update ::sources merge (zipmap argnames (map (fn [idx] (str "positional command line argument idx=" idx))
+                                                            (range (count pos-args)))))))
 
          (or (nil? command-match)
              (:help opts)

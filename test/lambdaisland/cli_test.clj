@@ -23,9 +23,12 @@
     (are [input args expected]
         (is (= expected (cli/dispatch* input args)))
       (cmdspec-1 false) []           {:lambdaisland.cli/argv []}
-      (cmdspec-1 true)  ["-x"]       {:lambdaisland.cli/argv [] :x 1}
-      (cmdspec-n false) ["run"]      {:lambdaisland.cli/argv [] :lambdaisland.cli/command ["run"]}
-      (cmdspec-n true)  ["run" "-x"] {:lambdaisland.cli/argv [] :lambdaisland.cli/command ["run"] :x 1}))
+      (cmdspec-1 true)  ["-x"]       {:lambdaisland.cli/argv [] :x 1
+                                      :lambdaisland.cli/sources {:x "-x command line flag"}}
+      (cmdspec-n false) ["run"]      {:lambdaisland.cli/argv [] :lambdaisland.cli/command ["run"]
+                                      :lambdaisland.cli/sources {}}
+      (cmdspec-n true)  ["run" "-x"] {:lambdaisland.cli/argv [] :lambdaisland.cli/command ["run"] :x 1
+                                      :lambdaisland.cli/sources {:x "-x command line flag"}}))
 
   (testing "help exit"
     (are [input args expected]
