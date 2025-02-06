@@ -158,22 +158,26 @@ influence global behavior, like `--verbose`, `--silent`, or `--dry-run`.
 
 At this point a few things are worth calling out.
 
-- We support both `--flag ARG` and `--flag=<arg>` format in the flag
-  specification, and accept both the version with and without a `=` when
-  invoking, regardless of which version is used to define the flag.
+- To specifiy arguments to flags or subcommands we support both the all-caps
+  version or the angle brackets, version, so `--flag ARG` or `--flag <arg>`.
+- You can optionally add an equal sign in between when specifying the argument,
+  e.g. `--flag=<arg>` .
+- When invoking the command, both the version with or without `=` are
+  understood, regardless of how the flag was specified.
 - If a flag is not predefined then only the `--flag=<arg>` version is able to
-  pass along an argument, with `--flag arg` we assume that arg is a plain
-  positional argument.
+  pass along an argument, with `--flag arg` we assume that flag does not take
+  any arguments, and arg is instead treated as a positional argument to the
+  (sub-)command.
 - For flags without arguments, the default behavior is to count the number of
   flags. This is useful for things like `--verbose` that can be specified
   multiple times. For other cases you can simply treat it as a boolean.
-- The key that is used in the options map is based on the long-form
+- The key that is used in the options map is based on the long-form.
   (double-dash) form. So `-v, --verbose` means you'll get a `:verbose` key, for
-  `-v` or `--verbose`
+  `-v` or `--verbose`.
 - You can use the `--[no-]foo` syntax for adding both a `--foo` and a `--no-foo`
   flag, in this case the resulting value in the opts map will be `:foo true` or
-  `:foo false`
-- You can add a `:default` to a flag, like `["--port PORT" {:default 8080}]`
+  `:foo false`.
+- You can add a `:default` to a flag, like `["--port PORT" {:default 8080}]`.
 - You can set a `:parse` function which will be used to parse/coerce the
   argument. The default will parse numbers (basic longs and doubles, no special
   formats), and nothing else.
@@ -182,7 +186,7 @@ At this point a few things are worth calling out.
   the default to a string or a number, this will look better in the help text,
   where we show the default.
 - A single dash (`-`) is considered a positional argument, conventially
-  indicating stdin/stdout
+  indicating stdin/stdout.
 - To pass a positional argument that starts with a dash, prefix it with a
   backslash. lambdaisland/cli will remove the backslash, and treat the remainder
   as a positional argument rather than a flag. Note that the shell does its own

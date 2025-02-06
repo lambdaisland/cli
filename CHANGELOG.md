@@ -1,10 +1,9 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- Call `parse` of default value, as documented, also when no `:handler` for a
+  flag is specified. Fixes #9
 
 # 0.19.78 (2024-12-23 / a1f884e)
 

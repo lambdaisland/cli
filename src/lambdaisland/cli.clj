@@ -291,14 +291,14 @@
 (defn add-defaults [init flagpairs]
   (reduce (fn [opts flagspec]
             (if-let [d (:default flagspec)]
-              (if-let [h (:handler flagspec)]
-                (binding [*opts* opts]
-                  (h opts (if (and (string? d) (:parse flagspec))
-                            ((:parse flagspec default-parse) d)
-                            d)))
-                (-> opts
-                    (assoc (:key flagspec) d)
-                    (assoc-in [::sources (:key flagspec)] (str (:flagstr flagspec) " (default value)"))))
+              (let [d (if (and (string? d) (:parse flagspec))
+                        ((:parse flagspec default-parse) d)
+                        d)]
+                (if-let [h (:handler flagspec)]
+                  (binding [*opts* opts] (h opts d))
+                  (-> opts
+                      (assoc (:key flagspec) d)
+                      (assoc-in [::sources (:key flagspec)] (str (:flagstr flagspec) " (default value)")))))
               opts))
           init
           (map second flagpairs)))
