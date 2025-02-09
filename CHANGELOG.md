@@ -1,3 +1,11 @@
+# Unreleased
+
+## Added
+
+## Fixed
+
+## Changed
+
 # 0.22.87 (2025-02-09 / afd4eb0)
 
 ## Added
