@@ -2,9 +2,7 @@
 
 ## Added
 
-## Fixed
-
-## Changed
+- Support `:middleware` in command specs, not just in flag handlers
 
 # 0.20.81 (2025-02-06 / 4f86a6e)
 
