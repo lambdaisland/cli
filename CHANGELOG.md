@@ -2,9 +2,14 @@
 
 ## Added
 
-## Fixed
+- `:middleware` can now be a single function, not only a sequence of functions
 
 ## Changed
+
+- [BREAKING] When setting a `:handler` for a boolean flag (one that looks like
+  `--[no-]...`), the handler now receives the boolean value as a second argument
+- [BREAKING] Invoke flag handlers/middleware in the order they are specified, so
+  that later flags can override earlier flags
 
 # 0.21.84 (2025-02-09 / fa56d06)
 

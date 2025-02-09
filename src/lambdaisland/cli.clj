@@ -91,7 +91,7 @@
                       (if required "(required)" "")]]
                     (map (fn [l]
                            ["" l ""]))
-                    (next (str/split doc #"\R")))))))))
+                    (next (str/split (or doc "") #"\R")))))))))
     (when (seq command-pairs)
       (println "\nSUBCOMMANDS")
       (print-table
@@ -128,7 +128,7 @@
               (vec middleware)
               :else
               [middleware])]
-     (append-middleware*
+     (prepend-middleware*
       opts
       (conj mw
             (fn [cmd]
@@ -172,7 +172,9 @@
          (cond
            (or (nil? argcnt)
                (= 0 argcnt))
-           [cli-args args (assoc-flag flags flagspec)]
+           (if (:boolean? flagspec)
+             [cli-args args (assoc-flag flags flagspec value)] ;; --[no-]... style flag handlers get a bool passed in
+             [cli-args args (assoc-flag flags flagspec)])
            (= 1 argcnt)
            (cond
              arg
@@ -279,7 +281,8 @@
         (seq args)
         (assoc :args args)
         no
-        (assoc :value (not negative?))
+        (assoc :value (not negative?)
+               :boolean? true)
         :->
         (merge flagopts)))))
 
@@ -406,7 +409,10 @@
     pos-args
     opts]
 
-   (let [opts (prepend-middleware* opts middleware)]
+   (let [opts (prepend-middleware* opts (if (or (fn? middleware)
+                                                (instance? clojure.lang.MultiFn middleware))
+                                          [middleware]
+                                          middleware))]
      (cond
        command
        (let [middleware (into [(bind-opts-mw)

@@ -282,7 +282,7 @@ must always be passed:
 - `:default` default value
 - `:value` value to be associated with the key (for flags that don't take arguments)
 - `:handler` handler function, `(fn [opts & flag-args] ,,,)` 
-- `:middelware` functions which wrap the final command handler
+- `:middleware` function(s) which wrap the final command handler (function or sequence of functions)
 - `:coll?` flag can be specified  multiple times, will result in a vector 
 - `:parse` function used to coerce the flag argument
 
@@ -399,6 +399,35 @@ This is my cool CLI tool. Use it well.
   -l, --long      Use long format   
 ```
 
+#### Command Middleware
+
+Commands, too, can receive middleware, including in the top level cmdspec. If
+you imagine middleware as getting wrapped in layers around the final command
+handler function, then the outer layers are the middleware for flags, and the
+inner layers are for command middleware, with subcommand middleware sitting
+inside their parent middleware.
+
+Flags that occur first on the command line get their middleware wrapped around
+the middleware for flags that occur later, so that later flags may override the
+behavior or earlier flags.
+
+What this means effectively is that is flags manipiulate the options, that this
+is visible to command middleware, and that if parent commands manipulate the
+options map, that this is visible to child commands. Similarly a parent could
+bind a dynamic var, and have it be visible to its children.
+
+#### Command option reference
+
+- `:name` (top-level only) Name of the command, used in the help text
+- `:doc` docstring, first line should be a short description, followed by a
+  blank line, and a longer description
+- `:command` handler function, `(fn [opts] ,,,)`, or var
+- `:commands` subcommands, mutually exclusive with `:command`
+- `:flags` flags, see the section of flags
+- `:middleware` function(s) which wrap the final command handler (function or sequence of functions)
+- `:init` Initial options maps, which gets threaded through middleware and flag
+  handlers, and passed to the final command handler
+
 ### Processing Order
 
 Most of what lambdaisland/cli does is combine the command and flag descriptions
@@ -427,8 +456,12 @@ available.
 Sub-commands can add additional flag specifications, if we encounter those then
 their defaults are added to the opts map, either directly or through their
 defined handler. This does mean that these kind of flags can only be used
-*after* the command. This may change in the future, since this is an unfortunate
-asymmetry.
+*after* the command. This is an unfortunate necessity, since doing it otherwise,
+by reparsing with the additional flags added, can lead to ambiguity between flag
+arguments and positional arguments. Note that in non-strict mode flags that
+precede the subcommand that defines them will use the default flag processing,
+without any regard for the flagspec defined on the subcommand (`:parse`,
+`:default`, `:handler`, `:middleware`, etc are all ignored).
 
 Finally the opts map gets bound to `cli/*opts*`, middleware gets invoked (so
 `*opts*` can be accessed during middleware execution).
