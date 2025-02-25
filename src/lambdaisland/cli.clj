@@ -296,16 +296,18 @@
 
 (defn add-defaults [init-opts flagpairs]
   (reduce (fn [opts flagspec]
-            (if-let [d (:default flagspec)]
-              (let [d (if (and (string? d) (:parse flagspec))
-                        ((:parse flagspec default-parse) d)
-                        d)]
-                (if-let [h (:handler flagspec)]
-                  (binding [*opts* opts] (h opts d))
-                  (-> opts
-                      (assoc (:key flagspec) d)
-                      (assoc-in [::sources (:key flagspec)] (str (:flagstr flagspec) " (default value)")))))
-              opts))
+            (if (some? (get opts (:key flagspec)))
+              opts
+              (if-let [d (:default flagspec)]
+                (let [d (if (and (string? d) (:parse flagspec))
+                          ((:parse flagspec default-parse) d)
+                          d)]
+                  (if-let [h (:handler flagspec)]
+                    (binding [*opts* opts] (h opts d))
+                    (-> opts
+                        (assoc (:key flagspec) d)
+                        (assoc-in [::sources (:key flagspec)] (str (:flagstr flagspec) " (default value)")))))
+                opts)))
           init-opts
           (map second flagpairs)))
 
@@ -397,6 +399,7 @@
    (dispatch* (to-cmdspec cmdspec) *command-line-args*))
   ([{:keys [flags init] :as cmdspec} cli-args]
    (let [init                     (if (or (fn? init) (var? init)) (init) init)
+         init                     (assoc init ::sources (into {} (map (fn [k] [k "Initial context"])) (keys init)))
          [cmdspec pos-args flags] (split-flags cmdspec cli-args init)
          flagpairs                (get cmdspec :flagpairs)]
      (dispatch* cmdspec pos-args flags)))

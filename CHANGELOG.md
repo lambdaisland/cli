@@ -2,9 +2,11 @@
 
 ## Added
 
+- Add source tracking (config provenance) for keys in the initial context
+
 ## Fixed
 
-## Changed
+- Only apply flag defaults if they are not yet present in the initial context
 
 # 0.22.87 (2025-02-09 / afd4eb0)
 
