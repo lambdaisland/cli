@@ -1,4 +1,8 @@
 (ns lambdaisland.cli
+  "Command line argument parsing and handling
+
+  With support for subcommands, following UNIX conventions.
+  "
   (:require
    [clojure.string :as str]
    [clojure.set :as set]
