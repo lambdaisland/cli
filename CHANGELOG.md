@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- When having named positional arguments and trailing unnamed positional arguments, assign them correctly
 
 # 0.23.93 (2025-02-25 / a192123)
 

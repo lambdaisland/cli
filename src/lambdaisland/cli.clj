@@ -142,20 +142,20 @@
                    (apply call-handler handler opts args)
                    (-> opts
                        (assoc
-                         (:key flagspec)
-                         (cond
-                           (= 0 (count args))
-                           (if (contains? flagspec :value)
-                             (:value flagspec)
-                             ((fnil inc 0) (get opts (:key flagspec))))
-                           (= 1 (count args))
-                           (if (:coll? flagspec)
-                             ((fnil conj []) (get opts (:key flagspec)) (first args))
-                             (first args))
-                           :else
-                           (if (:coll? flagspec)
-                             ((fnil into []) (get opts (:key flagspec)) args)
-                             (vec args))))
+                        (:key flagspec)
+                        (cond
+                          (= 0 (count args))
+                          (if (contains? flagspec :value)
+                            (:value flagspec)
+                            ((fnil inc 0) (get opts (:key flagspec))))
+                          (= 1 (count args))
+                          (if (:coll? flagspec)
+                            ((fnil conj []) (get opts (:key flagspec)) (first args))
+                            (first args))
+                          :else
+                          (if (:coll? flagspec)
+                            ((fnil into []) (get opts (:key flagspec)) args)
+                            (vec args))))
                        (assoc-in [::sources (:key flagspec)] (str (:flag flagspec) " command line flag"))))))))))))
 
 (defn default-parse [s]
@@ -451,6 +451,7 @@
             (-> cmdspec
                 (dissoc :command :commands :middleware)
                 (merge command-match)
+                (dissoc :argnames)
                 (assoc :name (str program-name " " cmd)))
             (drop arg-count pos-args)
             (-> opts

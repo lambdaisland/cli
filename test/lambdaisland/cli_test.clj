@@ -18,6 +18,12 @@
                      :flags   ["-x" {:doc      "flag x"
                                      :required required}]}]})
 
+(defn cmdspec-pos
+  "cmdspec with a positional argument."
+  []
+  {:commands ["run <module>"
+              {:command #'identity}]})
+
 (deftest required-flag
   (testing "successful exit"
     (are [input args expected]
@@ -47,3 +53,9 @@
         (is (thrown-with-msg? Exception expected (cli/dispatch* input args)))
       (cmdspec-1 true) []      #"Missing required flags: -x"
       (cmdspec-n true) ["run"] #"Missing required flags: -x")))
+
+(deftest positional-argument-with-trailing-arguments
+  (let [{::cli/keys [argv]
+         :keys [module]} (cli/dispatch* (cmdspec-pos) ["run" "foo" "bar"])]
+    (is (= "foo" module))
+    (is (= ["foo" "bar"] argv))))
