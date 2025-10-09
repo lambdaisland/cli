@@ -24,6 +24,114 @@ or add the following to your `project.clj` ([Leiningen](https://leiningen.org/))
 ```
 <!-- /installation -->
 
+## Getting Started
+
+Here, we will explain how to use `com.lambdaisland/cli` to create a simple script that can print out the options it receives and handle basic help.
+
+### Step 1: Create the Basic Command
+
+Init the `bb.edn` with 
+
+```
+{:deps  {com.lambdaisland/cli {:mvn/version "0.24.97"}}}
+```
+
+Create a file (e.g., `cli-test.bb`):
+
+```
+#!/usr/bin/env bb
+
+(require '[lambdaisland.cli :as cli]
+         '[clojure.pprint :as pprint])
+
+;; 1. Define your main function.
+(defn cli-test 
+  "Ground breaking tool breaks new ground."
+  [flags]
+  (pprint/pprint flags))
+  
+;; 2. Dispatch the function (using its var).
+(cli/dispatch #'cli-test)
+```
+
+Run it:
+
+```
+$ bb cli-test.bb --help
+NAME
+  cli-test  ——  Ground breaking tool breaks new ground.
+
+SYNOPSIS
+  cli-test [<args>...]
+```
+
+By passing a function var (`#'cli-test`), the library automatically infers the name and docstring for help output.
+
+### Step 2: Pass Arguments and Flags
+
+Your command function receives all parsed input as a single map argument, conventionally named flags or opts.
+
+Run it with some input
+
+```
+$ bb cli-test.bb --abc hello world --format=txt
+{:lambdaisland.cli/sources {},
+ :lambdaisland.cli/argv ["hello" "world"],
+ :abc 1,
+ :format "txt"}
+```
+
+Flags beginning with `--` become map keys; remaining values are collected in `:lambdaisland.cli/argv`.
+
+### Step 3: Define Custom Flags
+
+To gain control over how flags are parsed and to provide richer help text, we wrap the command var in a configuration map.
+
+Modify your `cli-test.bb` to include a `:flags` configuration:
+
+```
+(cli/dispatch
+ {:command #'cli-test ; The function to call
+  :flags   ["-v, --verbose" "Increases verbosity"
+            "--input FILE"  "Specify the input file"]})
+```
+
+Run the updated help:
+
+```
+$ bb cli-test.bb --help                        
+NAME
+  cli-test  ——  Ground breaking tool breaks new ground.
+
+SYNOPSIS
+  cli-test [-v | --verbose] [--input FILE] [<args>...]
+
+FLAGS
+  -v, --verbose      Increases verbosity      
+      --input FILE   Specify the input file   
+```
+
+Run the tool with the new flags:
+
+```
+$ bb cli-test.bb -vvv --input=world.txt
+{:lambdaisland.cli/sources
+ {:verbose "-v command line flag", :input "--input command line flag"},
+ :lambdaisland.cli/argv [],
+ :verbose 3,
+ :input "world.txt"}
+```
+
+Multiple short flags like `-vvv` are counted automatically, producing `:verbose 3`.
+
+### Summary
+
+- Step 1: Start with a single command using `cli/dispatch`.
+- Step 2: Pass arguments and flags; everything becomes a map.
+- Step 3: Add `:flags` for option parsing and richer help.
+
+You now have a solid foundation for building more advanced multi-command tools.
+
 ## Rationale
 
 This is an opinionated CLI argument handling library. It is meant for command
@@ -40,66 +148,11 @@ It scales from extremely low ceremony basic scripts, to fairly complex setups.
 This library helps you write [Well-behaved Command Line
 Tools](https://lambdaisland.com/blog/2020-07-28-well-behaved-command-line-tools)
 
-## Usage
+## How-to Guides
 
-The main entrypoint is `lambdaisland.cli/dispatch`, usually you're fine with the
-single-argument version, which defaults to consuming `*command-line-args*`.
+We can add extra things to the dispatch configuration map, notably `:flags` and `:commands`. We'll explain flags first.
 
-At its simplest you just pass it a var of a function named the same as your
-script (this matters for the help text, as well see below).
-
-```clj
-#!/usr/bin/env bb
-
-(require '[lambdaisland.cli :as cli]
-         '[clojure.pprint :as pprint])
-
-(defn cli-test 
-  "Ground breaking tool breaks new ground."
-  [flags]
-  (pprint/pprint flags))
-  
-(cli/dispatch #'cli-test)
-```
-
-This is enough to get a basic `--help` output.
-
-``` shell
-$ cli-test --help
-Usage: cli-test [<args>]
-
-Ground breaking tool breaks new ground.
-```
-
-And you can start passing positional arguments and basic flags to your script,
-your function will receive these all as a single map.
-
-```shell
-$ cli-test --abc hello world --format=txt
-{:abc 1, :format "txt", :lambdaisland.cli/argv ["hello" "world"]}
-```
-
-To do more interesting things we first wrap the var in a map.
-
-```clj
-(cli/dispatch {:command #'cli-test})
-```
-
-`:command` doesn't have to be a var, it can be a simple function, but with a var
-the docstring will still be used, as well as the var name, so this is equivalent
-to:
-
-```clj
-(cli/dispatch 
- {:command #'cli-test
-  :doc "Ground breaking tool breaks new ground."
-  :name "cli-test"})
-```
-
-### Flags
-
-Now we can add extra things to the dispatch configuration map, notably `:flags`
-and `:commands`. We'll explain flags first.
+### How to Configure Flags for Type Conversion and Defaults
 
 Because you haven't told lambdaisland/cli about the flags your script
 understands, it has to guess how to handle them. If you have arguments like
@@ -286,7 +339,7 @@ must always be passed:
 - `:coll?` flag can be specified  multiple times, will result in a vector 
 - `:parse` function used to coerce the flag argument
 
-### Commands
+### How to Build a Multi-Command CLI Tool
 
 `lambdaisland/cli` is specifically meant for CLI tools with multiple subcommands
 (and sub-sub-commands, and so forth). In this way it forms an appealing
