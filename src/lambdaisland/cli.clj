@@ -4,15 +4,16 @@
   With support for subcommands, following UNIX conventions.
   "
   (:require
-   [clojure.string :as str]
+   [clojure.pprint :as pprint]
    [clojure.set :as set]
-   [clojure.pprint :as pprint]))
+   [clojure.string :as str]
+   [lambdaisland.cli.completions :as completions]))
 
 ;; I've tried to be somewhat consistent with variable naming
 
 ;; - cmdspec: the map passed into dispatch, with :commands and :flags, possibly augmented with :flagspecs
 ;; - cli-args: the vector of cli arguments as the come in, or the tail of it if part has been processed
-;; - flagspecs: map of the possible flags with metadata, expanded to serve direct lookup, e.g. {"-i" {,,,} "--input" {,,,} "--no-input" {,,,}}
+;; - flagmap: map of the possible flags with metadata, expanded to serve direct lookup, e.g. {"-i" {,,,} "--input" {,,,} "--no-input" {,,,}}
 ;; - flagspec: map of how to deal with a given flag {:flag "--foo", :key :foo, :short? false, :argcnt 1}
 ;; - flagstr: string representation of a flagspec, e.g. "-i, --input FILE"
 ;; - argcnt: number of arguments a given flag consumes (usually zero or one, but could be more)
@@ -79,7 +80,8 @@
         (print-table
          (apply
           concat
-          (for [[_ {:keys [flags argdoc doc required] :as flagopts}] flagpairs]
+          (for [[_ {:keys [flags argdoc doc required] :as flagopts}] flagpairs
+                :when (not (:no-doc flagopts))]
             (let [short (some short? flags)
                   long (some long? flags)]
               (into [[(str (cond
@@ -99,7 +101,8 @@
     (when (seq command-pairs)
       (println "\nSUBCOMMANDS")
       (print-table
-       (for [[cmd cmdopts] command-pairs]
+       (for [[cmd cmdopts] command-pairs
+             :when (not (:no-doc cmdopts))]
          [(str cmd (if (:commands cmdopts)
                      (str " <" (str/join "|" (map first (:commands cmdopts))) ">")
                      (:argdoc cmdopts)))
@@ -404,9 +407,8 @@
   ([{:keys [flags init] :as cmdspec} cli-args]
    (let [init                     (if (or (fn? init) (var? init)) (init) init)
          init                     (assoc init ::sources (into {} (map (fn [k] [k "Initial context"])) (keys init)))
-         [cmdspec pos-args flags] (split-flags cmdspec cli-args init)
-         flagpairs                (get cmdspec :flagpairs)]
-     (dispatch* cmdspec pos-args flags)))
+         [cmdspec pos-args flags] (split-flags cmdspec cli-args init)]
+     (dispatch* (completions/with-completions cmdspec) pos-args flags)))
   ;; Note: this three-arg version of dispatch* is considered private, it's used
   ;; for internal recursion on subcommands.
   ([{:keys        [commands doc argnames command flags flagpairs flagmap middleware]
@@ -419,9 +421,12 @@
    (let [opts (prepend-middleware* opts (if (or (fn? middleware)
                                                 (instance? clojure.lang.MultiFn middleware))
                                           [middleware]
-                                          middleware))]
+                                          middleware))
+         command-pairs (when commands (prepare-cmdpairs commands))
+         command-map (when commands (update-keys (into {} command-pairs)
+                                                 #(first (str/split % #"[ =]"))))]
      (cond
-       command
+       (and command (not (get command-map (some-> pos-args first (str/split #"[ =]") first))))
        (let [middleware (into [(bind-opts-mw)
                                (missing-flags-mw cmdspec)
                                (help-mw cmdspec)]
@@ -438,9 +443,6 @@
              pos-args         (vec pos-args)
              cmd              (when cmd (first (str/split cmd #"[ =]")))
              opts             (if cmd (update opts ::command (fnil conj []) cmd) opts)
-             command-pairs    (prepare-cmdpairs commands)
-             command-map      (update-keys (into {} command-pairs)
-                                           #(first (str/split % #"[ =]")))
              command-match    (get command-map cmd)
              argnames         (:argnames command-match)
              arg-count        (count argnames)]

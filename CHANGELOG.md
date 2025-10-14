@@ -2,6 +2,9 @@
 
 ## Added
 
+- Experimentally add zsh completions
+- Support both :command and :commands on the same level
+
 ## Fixed
 
 ## Changed
