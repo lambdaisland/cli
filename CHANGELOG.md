@@ -1,3 +1,11 @@
+# Unreleased
+
+## Added
+
+## Fixed
+
+## Changed
+
 # 1.25.107 (2025-10-16 / 678a49c)
 
 ## Added
