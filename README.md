@@ -24,6 +24,21 @@ or add the following to your `project.clj` ([Leiningen](https://leiningen.org/))
 ```
 <!-- /installation -->
 
+## Rationale
+
+This is an opinionated CLI argument handling library. It is meant for command
+line tools with subcommands (for example git, which has `git commit`, `git log`
+and so forth). It tries to sticks to common conventions (in particular the
+prominent GNU conventions), uses a syntax that should feel natural to Clojure
+programmers (it's all just functions and data), and provides your tool with
+built-in help facilities automagically.
+
+It is Babashka compatible, and in fact pairs really nicely with `bb` for making
+home-grown or general purpose tools.
+
+This library helps you write [Well-behaved Command Line
+Tools](https://lambdaisland.com/blog/2020-07-28-well-behaved-command-line-tools)
+
 ## Getting Started
 
 Here, we will explain how to use `com.lambdaisland/cli` to create a simple script that can print out the options it receives and handle basic help.
@@ -33,7 +48,7 @@ Here, we will explain how to use `com.lambdaisland/cli` to create a simple scrip
 Init the `bb.edn` with 
 
 ```
-{:deps  {com.lambdaisland/cli {:mvn/version "0.24.97"}}}
+{:deps {com.lambdaisland/cli {:mvn/version "0.24.97"}}}
 ```
 
 Create a file (e.g., `cli-test.bb`):
@@ -41,15 +56,16 @@ Create a file (e.g., `cli-test.bb`):
 ```
 #!/usr/bin/env bb
 
-(require '[lambdaisland.cli :as cli]
-         '[clojure.pprint :as pprint])
+(require 
+ '[lambdaisland.cli :as cli]
+ '[clojure.pprint :as pprint])
 
 ;; 1. Define your main function.
 (defn cli-test 
   "Ground breaking tool breaks new ground."
-  [flags]
-  (pprint/pprint flags))
-  
+  [opts]
+  (pprint/pprint opts))
+
 ;; 2. Dispatch the function (using its var).
 (cli/dispatch #'cli-test)
 ```
@@ -69,29 +85,39 @@ By passing a function var (`#'cli-test`), the library automatically infers the n
 
 ### Step 2: Pass Arguments and Flags
 
-Your command function receives all parsed input as a single map argument, conventionally named flags or opts.
-
 Run it with some input
 
 ```
-$ bb cli-test.bb --abc hello world --format=txt
-{:lambdaisland.cli/sources {},
- :lambdaisland.cli/argv ["hello" "world"],
- :abc 1,
+$ bb cli-test.bb --abc -xxy hello --format=txt world
+{:lambdaisland.cli/argv ["hello" "world"]
+ :abc 1
+ :x 2
+ :y 1
  :format "txt"}
 ```
 
-Flags beginning with `--` become map keys; remaining values are collected in `:lambdaisland.cli/argv`.
+Your command function receives all parsed input as a single map argument.
+Arguments starting with `-` or `--` are parsed as flags with some default
+conventions (you can change how they are handled by explicitly defining them).
+
+- `--abc` — the value in the map is the number of times the flag, can be treated as a count or simply as a boolean
+- `-x` — also a count, but multiple one-letter flags can be passed at once when using a single dash, so `-xxy` is the same as `-x -x -y`
+- `--format=txt` — key-value, if the value looks like a number it is parsed as such
+- remaining values are collected in `:lambdaisland.cli/argv`.
 
 ### Step 3: Define Custom Flags
 
-To gain control over how flags are parsed and to provide richer help text, we wrap the command var in a configuration map.
+To gain control over how flags are parsed and to provide richer help text, we
+wrap the command var in a configuration map. Note that `:flags` uses vector
+syntax, so you can specify the order they show up in the help, but it functions
+more like a map.
 
 Modify your `cli-test.bb` to include a `:flags` configuration:
 
 ```
 (cli/dispatch
- {:command #'cli-test ; The function to call
+ {:name "cli-test"
+  :command #'cli-test ; The function to call
   :flags   ["-v, --verbose" "Increases verbosity"
             "--input FILE"  "Specify the input file"]})
 ```
@@ -115,14 +141,85 @@ Run the tool with the new flags:
 
 ```
 $ bb cli-test.bb -vvv --input=world.txt
-{:lambdaisland.cli/sources
- {:verbose "-v command line flag", :input "--input command line flag"},
- :lambdaisland.cli/argv [],
+{:lambdaisland.cli/argv [],
  :verbose 3,
  :input "world.txt"}
 ```
 
-Multiple short flags like `-vvv` are counted automatically, producing `:verbose 3`.
+### Step 4. Flag options and subcommands
+
+To give a hint of the full power of this library, we'll add a few subcommands,
+and change how the flags behave.
+
+For this we replace the single `:command` with a set of `:commands`, using a
+`tool noun verb` structure that is a common convention.
+
+Instead of just a string, we use a map to describe each flag, so we can set a
+default, change how it is parsed, or set the key that will show up in the
+options map passed to the command function.
+
+```clj
+(defn ls-widgets
+  [opts]
+  (println "Listing widgets")
+  (pprint/pprint opts))
+
+(cli/dispatch
+ {:name     "cli-test"
+  :commands ["widget"
+             {:doc      "Manipulate widgets"
+              :commands
+              ["ls"
+               {:doc     "List widgets"
+                :command ls-widgets}]}]
+  :flags    ["-v, --verbose" {:doc "Increases verbosity"
+                              :key :verbosity
+                              :default 0}
+             "--format <fmt>"  {:doc "Specify the format"
+                                :default "txt"
+                                :parse keyword}]})
+```
+
+And try it out:
+
+```
+$ cli-test widget ls --format=xxx -vvv
+Listing widgets
+{:verbosity 3
+ :format :xxx
+ :lambdaisland.cli/command ["widget" "ls"]
+ :lambdaisland.cli/argv []}
+```
+
+But note that this example can also be written using vars and docstrings, which
+makes it really neat. It also lets you put command specific flags in var
+metadata, like this:
+
+```clj
+(defn ls-widgets
+  "List widgets"
+  {:flags ["--[no-]disabled" "Include disabled widgets in the list"]}
+  [opts]
+  (println "Listing widgets")
+  (pprint/pprint opts))
+
+(def widget-cmds
+  "Manipulate widgets"
+  {:commands ["ls" #'ls-widgets]})
+
+(def flags
+  ["-v, --verbose" {:doc "Increases verbosity"
+                    :key :verbosity
+                    :default 0}
+   "--format <fmt>"  {:doc "Specify the format"
+                      :default "txt"
+                      :parse keyword}])
+
+(cli/dispatch
+ {:name     "cli-test"
+  :commands ["widget" #'widget-cmds]
+  :flags    flags})
+```
 
 ### Summary
 
@@ -131,22 +228,6 @@ Multiple short flags like `-vvv` are counted automatically, producing `:verbose 
 - Step 3: Add `:flags` for option parsing and richer help.
 
 You now have a solid foundation for building more advanced multi-command tools.
-
-## Rationale
-
-This is an opinionated CLI argument handling library. It is meant for command
-line tools with subcommands (for example git, which has `git commit`, `git log`
-and so forth). It works exactly how we like it, which mostly means it sticks to
-common conventions (in particular the prominent GNU conventions), needs little
-ceremony, and provides your tool with built-in help facilities automagically.
-
-It is Babashka compatible, and in fact pairs really nicely with `bb` for making
-home-grown or general purpose tools.
-
-It scales from extremely low ceremony basic scripts, to fairly complex setups.
-
-This library helps you write [Well-behaved Command Line
-Tools](https://lambdaisland.com/blog/2020-07-28-well-behaved-command-line-tools)
 
 ## How-to Guides
 
