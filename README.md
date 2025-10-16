@@ -66,7 +66,7 @@ Create a file (e.g., `cli-test`):
 ```clj
 #!/usr/bin/env bb
 
-# alternatively: #!/usr/bin/env clojure
+;; alternatively: #!/usr/bin/env clojure
 
 (require 
  '[lambdaisland.cli :as cli]
