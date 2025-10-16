@@ -41,20 +41,32 @@ Tools](https://lambdaisland.com/blog/2020-07-28-well-behaved-command-line-tools)
 
 ## Getting Started
 
-Here, we will explain how to use `com.lambdaisland/cli` to create a simple script that can print out the options it receives and handle basic help.
+We'll use `com.lambdaisland/cli` to create a simple script that can print out
+the options it receives and handle basic help.
+
+This assumes [Babashka](https://babashka.org/) is installed, so `bb` should be
+on your shell's `PATH`. To use lambdaisland/cli with plain Clojure instead, use
+`deps.edn` instead of `bb.edn`, and `clojure` instead of `bb`.
+
+```
+$ bb --version
+$ clojure --version
+```
 
 ### Step 1: Create the Basic Command
 
-Init the `bb.edn` with 
+Start by creating a `bb.edn` file (or `deps.edn` when using `clojure`):
 
-```
+```clj
 {:deps {com.lambdaisland/cli {:mvn/version "1.25.107"}}}
 ```
 
-Create a file (e.g., `cli-test.bb`):
+Create a file (e.g., `cli-test`):
 
-```
+```clj
 #!/usr/bin/env bb
+
+# alternatively: #!/usr/bin/env clojure
 
 (require 
  '[lambdaisland.cli :as cli]
@@ -70,10 +82,16 @@ Create a file (e.g., `cli-test.bb`):
 (cli/dispatch #'cli-test)
 ```
 
+Make it executable:
+
+```shell
+chmod +x cli-test
+```
+
 Run it:
 
-```
-$ bb cli-test.bb --help
+```shell
+$ ./cli-test --help
 NAME
   cli-test  ——  Ground breaking tool breaks new ground.
 
@@ -81,13 +99,14 @@ SYNOPSIS
   cli-test [<args>...]
 ```
 
-By passing a function var (`#'cli-test`), the library automatically infers the name and docstring for help output.
+By passing a function var (`#'cli-test`), the library automatically infers the
+name and docstring for help output.
 
 ### Step 2: Pass Arguments and Flags
 
 Run it with some input
 
-```
+```clj
 $ bb cli-test.bb --abc -xxy hello --format=txt world
 {:lambdaisland.cli/argv ["hello" "world"]
  :abc 1
@@ -114,7 +133,7 @@ more like a map.
 
 Modify your `cli-test.bb` to include a `:flags` configuration:
 
-```
+```clj
 (cli/dispatch
  {:name "cli-test"
   :command #'cli-test ; The function to call
@@ -124,7 +143,7 @@ Modify your `cli-test.bb` to include a `:flags` configuration:
 
 Run the updated help:
 
-```
+```shell
 $ bb cli-test.bb --help                        
 NAME
   cli-test  ——  Ground breaking tool breaks new ground.
@@ -139,7 +158,7 @@ FLAGS
 
 Run the tool with the new flags:
 
-```
+```clj
 $ bb cli-test.bb -vvv --input=world.txt
 {:lambdaisland.cli/argv [],
  :verbose 3,
