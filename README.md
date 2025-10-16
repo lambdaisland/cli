@@ -609,14 +609,16 @@ map they receive.
 
 ## Shell completion
 
-There is experimental support for shell tab-completion for zsh. It is bare
-bones, it can complete subcommands and flags, and is aware of nested
+There is experimental support for shell tab-completion for zsh and bash. It is
+bare bones, it can complete subcommands and flags, and is aware of nested
 subcommands, but don't expect it to be perfect. There is no smart completion of
-flag values yes.
+flag values or positional arguments yet, and it's not yet pluggable (specify
+type/completions of values), but it's already helpful.
 
 To get started run the hidden `__licli install-completions` subcommand. This
-will create `~/.zsh/completions/_licli`, and add a section to your `~/.zshrc` to
-autoload it and associate it with the current command.
+will detect your shell, and install the necessary bits, and associate our
+dynamic completion with your specific command. You can add `--zsh` or `--bash`
+to explictly choose which shell to configure.
 
 e.g.
 
@@ -624,14 +626,17 @@ e.g.
 bin/my_command __licli install-completions
 ```
 
-When calling from Clojure (not Babashka), pass the full path to the executable
-as an argument. You can easily use `realpath` for that.
+When calling from Clojure (not Babashka), we can't derive the script name
+explicitly. Pass the full path to the executable as an argument. You can easily
+use `realpath` for that.
 
 ```
 bin/my_command __licli install-completions `realpath bin/my_command`
 ```
 
-Other shells may come in the future. Contributions to the shell completion are welcome!
+Other shells and smarter completions may come in the future. The current
+implementation is so we have a starting point that can be improved.
+Contributions to the shell completion are welcome!
 
 <!-- opencollective -->
 ## Lambda Island Open Source
