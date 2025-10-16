@@ -7,6 +7,7 @@
    [clojure.pprint :as pprint]
    [clojure.set :as set]
    [clojure.string :as str]
+   [lambdaisland.cli.cmdspec :as cmdspec]
    [lambdaisland.cli.completions :as completions]))
 
 ;; I've tried to be somewhat consistent with variable naming
@@ -207,49 +208,19 @@
      (map #(str "-" %) (next flag))
      [flag])))
 
-(def args-re #" ([A-Z][A-Z_-]*)|[= ]<([^>]+)>")
 (def flag-re #"^(--?)(\[no-\])?(.+)$")
-
-(defn parse-arg-names [str]
-  [(str/split (str/replace str args-re "") #",\s*")
-   (str/join (map first (re-seq args-re str)))
-   (mapv (fn [[_ u l]] (keyword (str/lower-case (or u l)))) (re-seq args-re str))])
-
-(defn to-cmdspec [?var]
-  (cond
-    (var? ?var)
-    (if (fn? @?var)
-      (assoc (meta ?var) :command ?var)
-      (merge (meta ?var) @?var))
-
-    (fn? ?var)
-    {:command ?var}
-
-    (var? (:command ?var))
-    (merge (meta (:command ?var)) ?var)
-
-    :else
-    ?var))
-
-(defn prepare-cmdpairs [commands]
-  (let [m (if (vector? commands) (partition 2 commands) commands)]
-    (map (fn [[k v]]
-           (let [v (to-cmdspec v)
-                 [[cmd] doc argnames] (parse-arg-names k)]
-             [cmd (assoc v :argdoc doc :argnames argnames)]))
-         m)))
 
 (defn cmd->flags [cmdspec args]
   (if (seq args)
     (when-let [cmds (:commands cmdspec)]
-      (cmd->flags (get (into {} (prepare-cmdpairs (:commands cmdspec)))
+      (cmd->flags (get (into {} (cmdspec/prepare-cmdpairs (:commands cmdspec)))
                        (first args))
                   (rest args)))
     (:flags cmdspec)))
 
 (defn parse-flagstr [flagstr flagopts]
   (let [;; support "--foo=<hello>" and "--foo HELLO"
-        [flags argdoc argnames] (parse-arg-names flagstr)
+        [flags argdoc argnames] (cmdspec/parse-arg-names flagstr)
         argcnt                  (count argnames)
         ;; e.g. "-i,--input, --[no-]foo ARG"
         flagstrs                (map #(re-find flag-re %) flags)
@@ -403,7 +374,7 @@
 
 (defn dispatch*
   ([cmdspec]
-   (dispatch* (to-cmdspec cmdspec) *command-line-args*))
+   (dispatch* (cmdspec/to-cmdspec cmdspec) *command-line-args*))
   ([{:keys [flags init] :as cmdspec} cli-args]
    (let [init                     (if (or (fn? init) (var? init)) (init) init)
          init                     (assoc init ::sources (into {} (map (fn [k] [k "Initial context"])) (keys init)))
@@ -422,7 +393,7 @@
                                                 (instance? clojure.lang.MultiFn middleware))
                                           [middleware]
                                           middleware))
-         command-pairs (when commands (prepare-cmdpairs commands))
+         command-pairs (when commands (cmdspec/prepare-cmdpairs commands))
          command-map (when commands (update-keys (into {} command-pairs)
                                                  #(first (str/split % #"[ =]"))))]
      (cond
@@ -485,10 +456,10 @@
                              (:doc command-match)
                              doc)
                            (for [[k v] (if command-match
-                                         (-> command-match :commands prepare-cmdpairs)
+                                         (-> command-match :commands cmdspec/prepare-cmdpairs)
                                          command-pairs)]
                              [k (if (:commands v)
-                                  (update v :commands prepare-cmdpairs)
+                                  (update v :commands cmdspec/prepare-cmdpairs)
                                   v)])
                            argnames
                            flagpairs)
@@ -496,7 +467,7 @@
                            doc
                            (for [[k v] command-pairs]
                              [k (if (:commands v)
-                                  (update v :commands prepare-cmdpairs)
+                                  (update v :commands cmdspec/prepare-cmdpairs)
                                   v)])
                            argnames
                            flagpairs)))

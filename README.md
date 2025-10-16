@@ -614,21 +614,21 @@ bones, it can complete subcommands and flags, and is aware of nested
 subcommands, but don't expect it to be perfect. There is no smart completion of
 flag values yes.
 
-To get started run the hidden `__install_zsh_completions` subcommand. This will
-create `~/.zsh/completions/_licli`, and add a section to your `~/.zshrc` to
+To get started run the hidden `__licli install-completions` subcommand. This
+will create `~/.zsh/completions/_licli`, and add a section to your `~/.zshrc` to
 autoload it and associate it with the current command.
 
 e.g.
 
 ```
-bin/my_command __install_zsh_completions
+bin/my_command __licli install-completions
 ```
 
 When calling from Clojure (not Babashka), pass the full path to the executable
 as an argument. You can easily use `realpath` for that.
 
 ```
-bin/my_command __install_zsh_completions `realpath bin/my_command`
+bin/my_command __licli install-completions `realpath bin/my_command`
 ```
 
 Other shells may come in the future. Contributions to the shell completion are welcome!

@@ -2,10 +2,7 @@
 
 _licli() {
     local completion_output
-    completion_output="$(\
-        ${words[1]} __zsh_completions \
-        -- "${words[@]}" \
-    )"
+    completion_output="$( ${words[1]} __licli completions -- "${words[@]}" )"
 
     if [ -n "$completion_output" ]; then
         local -a pairs
