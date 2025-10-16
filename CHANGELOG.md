@@ -2,12 +2,8 @@
 
 ## Added
 
-- Experimentally add zsh completions
-- Support both :command and :commands on the same level
-
-## Fixed
-
-## Changed
+- Experimentally add zsh and bash completions
+- Support both `:command` and `:commands` on the same level
 
 # 0.24.97 (2025-07-12 / 449155f)
 
