@@ -14,13 +14,13 @@ Command line parser with good subcommand and help handling
 To use the latest release, add the following to your `deps.edn` ([Clojure CLI](https://clojure.org/guides/deps_and_cli))
 
 ```
-com.lambdaisland/cli {:mvn/version "0.24.97"}
+com.lambdaisland/cli {:mvn/version "1.25.107"}
 ```
 
 or add the following to your `project.clj` ([Leiningen](https://leiningen.org/))
 
 ```
-[com.lambdaisland/cli "0.24.97"]
+[com.lambdaisland/cli "1.25.107"]
 ```
 <!-- /installation -->
 
@@ -48,7 +48,7 @@ Here, we will explain how to use `com.lambdaisland/cli` to create a simple scrip
 Init the `bb.edn` with 
 
 ```
-{:deps {com.lambdaisland/cli {:mvn/version "0.24.97"}}}
+{:deps {com.lambdaisland/cli {:mvn/version "1.25.107"}}}
 ```
 
 Create a file (e.g., `cli-test.bb`):
