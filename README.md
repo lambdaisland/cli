@@ -1,7 +1,7 @@
 # cli
 
 <!-- badges -->
-[![cljdoc badge](https://cljdoc.org/badge/com.lambdaisland/cli)](https://cljdoc.org/d/com.lambdaisland/cli) [![Clojars Project](https://img.shields.io/clojars/v/com.lambdaisland/cli.svg)](https://clojars.org/com.lambdaisland/cli)
+[![cljdoc badge](https://cljdoc.org/badge/com.lambdaisland/cli)](https://cljdoc.org/d/com.lambdaisland/cli) [![Clojars Project](https://img.shields.io/clojars/v/com.lambdaisland/cli.svg)](https://clojars.org/com.lambdaisland/cli) ![](https://img.shields.io/clojars/dt/com.lambdaisland%2Fcli?style=flat-square)
 <!-- /badges -->
 
 Command line parser with good subcommand and help handling
@@ -13,13 +13,13 @@ Command line parser with good subcommand and help handling
 
 To use the latest release, add the following to your `deps.edn` ([Clojure CLI](https://clojure.org/guides/deps_and_cli))
 
-```
+```clj
 com.lambdaisland/cli {:mvn/version "1.25.107"}
 ```
 
 or add the following to your `project.clj` ([Leiningen](https://leiningen.org/))
 
-```
+```clj
 [com.lambdaisland/cli "1.25.107"]
 ```
 <!-- /installation -->
@@ -720,7 +720,7 @@ line with the project's goals.
 <!-- license -->
 ## License
 
-Copyright &copy; 2024 Arne Brasseur and Contributors
+Copyright &copy; 2024-2025 Arne Brasseur and Contributors
 
 Licensed under the term of the Mozilla Public License 2.0, see LICENSE.
 <!-- /license -->
