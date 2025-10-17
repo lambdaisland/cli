@@ -1,9 +1,7 @@
 # cli
 
 <!-- badges -->
-<p align=center>
 [![cljdoc badge](https://cljdoc.org/badge/com.lambdaisland/cli)](https://cljdoc.org/d/com.lambdaisland/cli) [![Clojars Project](https://img.shields.io/clojars/v/com.lambdaisland/cli.svg)](https://clojars.org/com.lambdaisland/cli) ![](https://img.shields.io/clojars/dt/com.lambdaisland%2Fcli?style=flat-square)
-</p>
 <!-- /badges -->
 
 Command line parser with good subcommand and help handling
