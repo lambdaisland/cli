@@ -242,15 +242,19 @@ metadata, like this:
 
 ### Summary
 
-- Step 1: Start with a single command using `cli/dispatch`.
-- Step 2: Pass arguments and flags; everything becomes a map.
-- Step 3: Add `:flags` for option parsing and richer help.
+We've shown how you can get started immediately, relying on the automatic
+handling of flags and positional arguments. How you can improve how flags and
+arguments are handled, and get better help text, by defining them explicitly,
+and how var references provide a concise way to define complex setups.
 
-You now have a solid foundation for building more advanced multi-command tools.
+This just scratches the surface, we haven't shown commands with named positional
+arguments, middleware, flag handling functions, passing through a map of initial
+values, or shell tab-completion.
 
 ## How-to Guides
 
-We can add extra things to the dispatch configuration map, notably `:flags` and `:commands`. We'll explain flags first.
+We can add extra things to the dispatch configuration map, notably `:flags` and
+`:commands`. We'll explain flags first.
 
 ### How to Configure Flags for Type Conversion and Defaults
 
