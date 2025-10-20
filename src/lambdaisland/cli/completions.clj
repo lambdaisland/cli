@@ -20,7 +20,7 @@
                  cmdspec
                  (butlast (next argv)))]
     (doseq [[cmd {:keys [doc]}] (cmdspec/prepare-cmdpairs (:commands cmdspec))]
-      (println (str cmd (when doc ":") (first (str/split doc #"\R")))))
+      (println (str cmd (when doc (str ":" (first (str/split doc #"\R")))))))
     (doseq [[flag {:keys [doc]}] (:flagmap cmdspec)]
       (println (str flag ":" (or doc (str/replace flag #"^-+" "")))))))
 

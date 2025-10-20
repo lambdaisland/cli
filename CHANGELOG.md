@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- Fix completion when no docstring is present
 
 # 1.25.107 (2025-10-16 / 678a49c)
 
