@@ -1,3 +1,11 @@
+# Unreleased
+
+## Added
+
+## Fixed
+
+## Changed
+
 # 1.26.116 (2025-10-20 / 1d9739a)
 
 ## Fixed
