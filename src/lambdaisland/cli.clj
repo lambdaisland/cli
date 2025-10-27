@@ -68,7 +68,9 @@
                               (str " [" (str/join " | " flags) argdoc "]")))
                   (when (seq command-pairs)
                     (str " ["
-                         (str/join " | " (map first command-pairs))
+                         (str/join " | " (for [[cmd cmdopts] command-pairs
+                                               :when (not (:no-doc cmdopts))]
+                                           cmd))
                          "]"))
                   " [<args>...]"))
     (when-let [doc (next doc-lines)]

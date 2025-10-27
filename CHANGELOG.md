@@ -4,6 +4,8 @@
 
 ## Fixed
 
+- Hide `:no-doc` flags from help text
+
 ## Changed
 
 # 1.26.116 (2025-10-20 / 1d9739a)
