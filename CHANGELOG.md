@@ -5,6 +5,7 @@
 ## Fixed
 
 - Hide `:no-doc` flags from help text
+- Correctly quote in .zshrc completion declaration
 
 ## Changed
 

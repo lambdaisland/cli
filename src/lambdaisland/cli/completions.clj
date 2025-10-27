@@ -48,7 +48,7 @@
                   (when-not (re-find #"(?m)^compinit$" zshrc)
                     (str "compinit\n"))
                   (let [base-name (last (str/split script-name #"/"))]
-                    (str "compdef _licli " script-name " */" base-name " " base-name)))]
+                    (str "compdef _licli " script-name " '*/" base-name "' " base-name)))]
       (println "Updating" (str zshrc-path) ", adding:")
       (println stanza)
       (spit zshrc-path (str zshrc "\n" stanza)))))
