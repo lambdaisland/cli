@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- Ignore leading whitespace on consecutive lines of flag docs
 
 # 1.27.121 (2025-10-27 / 8245765)
 

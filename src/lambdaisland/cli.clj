@@ -100,7 +100,7 @@
                       (if required "(required)" "")]]
                     (map (fn [l]
                            ["" l ""]))
-                    (next (str/split (or doc "") #"\R")))))))))
+                    (next (map str/trim (str/split (or doc "") #"\R"))))))))))
     (when (seq command-pairs)
       (println "\nSUBCOMMANDS")
       (print-table
