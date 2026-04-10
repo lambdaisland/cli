@@ -50,6 +50,15 @@
 (defn long? [f]
   (re-find #"^--.*" f))
 
+(defn spill-lines [segments width]
+  (reduce
+   (fn [acc seg]
+     (if (< (+ (count (last acc)) (count seg)) width)
+       (update acc (dec (count acc)) str " " seg)
+       (conj acc seg)))
+   [""]
+   segments))
+
 (defn print-help [cmd-name doc command-pairs argnames flagpairs]
   (let [desc #(str (first (str/split (:doc % "") #"\R"))
                    (when-let [d (:default %)] (str " (default " (pr-str d) ")")))
@@ -60,19 +69,21 @@
     (println)
 
     (println "SYNOPSIS")
-    (println (str "  " cmd-name
-                  (when (seq argnames)
-                    (str/join (for [n argnames]
-                                (str " <" (name n) ">"))))
-                  (str/join (for [[_ {:keys [flags argdoc]}] flagpairs]
-                              (str " [" (str/join " | " flags) argdoc "]")))
-                  (when (seq command-pairs)
-                    (str " ["
-                         (str/join " | " (for [[cmd cmdopts] command-pairs
-                                               :when (not (:no-doc cmdopts))]
-                                           cmd))
-                         "]"))
-                  " [<args>...]"))
+    (let [[l & ls] (spill-lines (concat [cmd-name]
+                                        (for [n argnames]
+                                          (str "<" (name n) ">"))
+                                        (for [[_ {:keys [flags argdoc]}] flagpairs]
+                                          (str "[" (str/join " | " flags) argdoc "]"))
+                                        (when (seq command-pairs)
+                                          [(str "["
+                                                (str/join " | " (for [[cmd cmdopts] command-pairs
+                                                                      :when (not (:no-doc cmdopts))]
+                                                                  cmd))
+                                                "]")])
+                                        ["[<args>...]"])
+                                120)]
+      (println "" l)
+      (run! #(println "   " %) ls))
     (when-let [doc (next doc-lines)]
       (println "\nDESCRIPTION")
       (println " " (str/join "\n  " (map str/trim (drop-while #(str/blank? %) doc)))))

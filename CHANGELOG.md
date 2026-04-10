@@ -1,10 +1,9 @@
 # Unreleased
 
-## Added
-
-## Fixed
-
 ## Changed
+
+- When there are a large number of flags/subcommands, split the synopsis across 
+  multiple lines, breaking at 120 characters
 
 # 1.28.124 (2026-04-10 / 37a0800)
 
