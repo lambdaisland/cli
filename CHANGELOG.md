@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- Improve shell completion of flags tied to subcommands
 
 # 1.29.127 (2026-04-10 / c8d5d75)
 

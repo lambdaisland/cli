@@ -437,11 +437,13 @@ must always be passed:
 
 - `:doc` docstring
 - `:default` default value
+- `:key` key to assoc into options map (defaults to flag name)
 - `:value` value to be associated with the key (for flags that don't take arguments)
 - `:handler` handler function, `(fn [opts & flag-args] ,,,)` 
 - `:middleware` function(s) which wrap the final command handler (function or sequence of functions)
 - `:coll?` flag can be specified  multiple times, will result in a vector 
 - `:parse` function used to coerce the flag argument
+- `:required` if true, flag must be provided
 
 ### How to Build a Multi-Command CLI Tool
 

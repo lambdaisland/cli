@@ -7,7 +7,9 @@
 (declare with-completions)
 
 (defn shell-completions [cmdspec {:lambdaisland.cli/keys [argv] :as opts}]
-  (let [cmdspec (reduce
+  (let [args    (butlast (next argv))
+        cmdspec (cmdspec/add-processed-flags cmdspec (cmdspec/cmd->flags cmdspec args))
+        cmdspec (reduce
                  (fn [cmdspec arg]
                    (let [commands (cmdspec/prepare-cmdpairs (:commands (with-completions cmdspec)))]
                      (if-let [command-match (get (into {} commands) arg)]
@@ -18,7 +20,7 @@
                                                   (:flagmap (cmdspec/to-cmdspec command-match)))))
                        cmdspec)))
                  cmdspec
-                 (butlast (next argv)))]
+                 args)]
     (doseq [[cmd {:keys [doc]}] (cmdspec/prepare-cmdpairs (:commands cmdspec))]
       (println (str cmd (when doc (str ":" (first (str/split doc #"\R")))))))
     (doseq [[flag {:keys [doc]}] (:flagmap cmdspec)]
