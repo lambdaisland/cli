@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.lambdaisland</groupId>
   <artifactId>cli</artifactId>
-  <version>1.29.127</version>
+  <version>1.30.130</version>
   <name>cli</name>
   <description>Command line parser with good subcommand and help handling</description>
   <url>https://github.com/lambdaisland/cli</url>
@@ -25,7 +25,7 @@
     <url>https://github.com/lambdaisland/cli</url>
     <connection>scm:git:git://github.com/lambdaisland/cli.git</connection>
     <developerConnection>scm:git:ssh://git@github.com/lambdaisland/cli.git</developerConnection>
-    <tag>3a8b8ade637ca4c1f0ada007e9b98871a862b3cd</tag>
+    <tag>457bfbdf0d83f2b0d7dbff1dd1ff82b45093cf1c</tag>
   </scm>
   <dependencies></dependencies>
   <build>
@@ -55,7 +55,7 @@
         <configuration>
           <archive>
             <manifestEntries>
-              <git-revision>3a8b8ade637ca4c1f0ada007e9b98871a862b3cd</git-revision>
+              <git-revision>457bfbdf0d83f2b0d7dbff1dd1ff82b45093cf1c</git-revision>
             </manifestEntries>
           </archive>
         </configuration>
