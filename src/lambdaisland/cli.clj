@@ -8,7 +8,7 @@
    [clojure.set :as set]
    [clojure.string :as str]
    [lambdaisland.cli.cmdspec :as cmdspec]
-   [lambdaisland.cli.completions :as completions]))
+   #_[lambdaisland.cli.completions :as completions]))
 
 ;; I've tried to be somewhat consistent with variable naming
 
@@ -55,10 +55,10 @@
    segments))
 
 (defn print-help [cmd-name doc command-pairs argnames flagpairs]
-  (let [desc #(str (first (str/split (:doc % "") #"\R"))
+  (let [desc #(str (first (str/split (:doc % "") #"\n"))
                    (when-let [d (:default %)] (str " (default " (pr-str d) ")")))
         doc-lines (when-not (str/blank? doc)
-                    (str/split doc #"\R"))]
+                    (str/split doc #"\n"))]
     (println "NAME")
     (println " " cmd-name (if doc-lines (str " ——  " (first doc-lines)) ""))
     (println)
@@ -106,7 +106,7 @@
                       (if required "(required)" "")]]
                     (map (fn [l]
                            ["" l ""]))
-                    (next (map str/trim (str/split (or doc "") #"\R"))))))))))
+                    (next (map str/trim (str/split (or doc "") #"\n"))))))))))
     (when (seq command-pairs)
       (println "\nSUBCOMMANDS")
       (print-table
@@ -135,40 +135,39 @@
   (binding [*opts* opts]
     (apply handler opts args)))
 
-(defn assoc-flag
-  ([opts {:keys [middleware handler] :as flagspec} & args]
-   (let [mw (cond
-              (nil? middleware)
-              []
-              (sequential? middleware)
-              (vec middleware)
-              :else
-              [middleware])]
-     (prepend-middleware*
-      opts
-      (conj mw
-            (fn [cmd]
-              (fn [opts]
-                (cmd
-                 (if handler
-                   (apply call-handler handler opts args)
-                   (-> opts
-                       (assoc
-                        (:key flagspec)
-                        (cond
-                          (= 0 (count args))
-                          (if (contains? flagspec :value)
-                            (:value flagspec)
-                            ((fnil inc 0) (get opts (:key flagspec))))
-                          (= 1 (count args))
-                          (if (:coll? flagspec)
-                            ((fnil conj []) (get opts (:key flagspec)) (first args))
-                            (first args))
-                          :else
-                          (if (:coll? flagspec)
-                            ((fnil into []) (get opts (:key flagspec)) args)
-                            (vec args))))
-                       (assoc-in [::sources (:key flagspec)] (str (:flag flagspec) " command line flag"))))))))))))
+(defn assoc-flag [opts {:keys [middleware handler] :as flagspec} & args]
+  (let [mw (cond
+             (nil? middleware)
+             []
+             (sequential? middleware)
+             (vec middleware)
+             :else
+             [middleware])]
+    (prepend-middleware*
+     opts
+     (conj mw
+           (fn [cmd]
+             (fn [opts]
+               (cmd
+                (if handler
+                  (apply call-handler handler opts args)
+                  (-> opts
+                      (assoc
+                       (:key flagspec)
+                       (cond
+                         (= 0 (count args))
+                         (if (contains? flagspec :value)
+                           (:value flagspec)
+                           ((fnil inc 0) (get opts (:key flagspec))))
+                         (= 1 (count args))
+                         (if (:coll? flagspec)
+                           ((fnil conj []) (get opts (:key flagspec)) (first args))
+                           (first args))
+                         :else
+                         (if (:coll? flagspec)
+                           ((fnil into []) (get opts (:key flagspec)) args)
+                           (vec args))))
+                      (assoc-in [::sources (:key flagspec)] (str (:flag flagspec) " command line flag")))))))))))
 
 (defn default-parse [s]
   (cond
@@ -298,6 +297,21 @@
       (binding [*opts* opts]
         (cmd opts)))))
 
+(defn update-keys
+  "m f => {(f k) v ...}
+
+  Given a map m and a function f of 1-argument, returns a new map whose
+  keys are the result of applying f to the keys of m, mapped to the
+  corresponding values of m.
+  f must return a unique key for each key of m, else the behavior is undefined."
+  {:added "1.11"}
+  [m f]
+  (let [ret (persistent!
+             (reduce-kv (fn [acc k v] (assoc! acc (f k) v))
+                        (transient {})
+                        m))]
+    (with-meta ret (meta m))))
+
 (defn dispatch*
   ([cmdspec]
    (dispatch* (cmdspec/to-cmdspec cmdspec) *command-line-args*))
@@ -305,7 +319,7 @@
    (let [init                     (if (or (fn? init) (var? init)) (init) init)
          init                     (assoc init ::sources (into {} (map (fn [k] [k "Initial context"])) (keys init)))
          [cmdspec pos-args flags] (split-flags cmdspec cli-args init)]
-     (dispatch* (completions/with-completions cmdspec) pos-args flags)))
+     (dispatch* cmdspec #_(completions/with-completions cmdspec) pos-args flags)))
   ;; Note: this three-arg version of dispatch* is considered private, it's used
   ;; for internal recursion on subcommands.
   ([{:keys        [commands doc argnames command flags flagpairs flagmap middleware]
@@ -316,7 +330,7 @@
     opts]
 
    (let [opts (prepend-middleware* opts (if (or (fn? middleware)
-                                                (instance? clojure.lang.MultiFn middleware))
+                                                #_(instance? clojure.lang.MultiFn middleware))
                                           [middleware]
                                           middleware))
          command-pairs (when commands (cmdspec/prepare-cmdpairs commands))

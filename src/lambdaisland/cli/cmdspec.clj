@@ -93,7 +93,7 @@
         (assoc :short? true)
         (seq args)
         (assoc :args args)
-        no
+        (not (str/blank? no))
         (assoc :value (not negative?)
                :boolean? true)
         :->
@@ -121,6 +121,6 @@
         (update :flagpairs (fn [fp]
                              (into (vec fp)
                                    ;; This prevents duplicates. Yes, this is not pretty. I'm very sorry.
-                                   (remove #((into #{} (map first) fp) (first %)))
+                                   (filter (complement #((into #{} (map first) fp) (first %))))
                                    flagpairs)))
         (update :flagmap merge flagmap))))
