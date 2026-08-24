@@ -14,13 +14,13 @@ Command line parser with good subcommand and help handling
 To use the latest release, add the following to your `deps.edn` ([Clojure CLI](https://clojure.org/guides/deps_and_cli))
 
 ```clj
-com.lambdaisland/cli {:mvn/version "1.30.130"}
+com.lambdaisland/cli {:mvn/version "1.31.133"}
 ```
 
 or add the following to your `project.clj` ([Leiningen](https://leiningen.org/))
 
 ```clj
-[com.lambdaisland/cli "1.30.130"]
+[com.lambdaisland/cli "1.31.133"]
 ```
 <!-- /installation -->
 
@@ -58,7 +58,7 @@ $ clojure --version
 Start by creating a `bb.edn` file (or `deps.edn` when using `clojure`):
 
 ```clj
-{:deps {com.lambdaisland/cli {:mvn/version "1.30.130"}}}
+{:deps {com.lambdaisland/cli {:mvn/version "1.31.133"}}}
 ```
 
 Create a file (e.g., `cli-test`):
