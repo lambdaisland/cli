@@ -64,7 +64,7 @@
     (println)
 
     (println "SYNOPSIS")
-    (let [[l & ls] (spill-lines (concat [cmd-name]
+    (let [[l & ls] (spill-lines (concat [(str cmd-name)]
                                         (for [n argnames]
                                           (str "<" (name n) ">"))
                                         (for [[_ {:keys [flags argdoc]}] flagpairs]

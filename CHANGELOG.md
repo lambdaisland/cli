@@ -1,10 +1,8 @@
 # Unreleased
 
-## Added
-
 ## Fixed
 
-## Changed
+- Fix error in `--help` when program name is derived from single `:command`
 
 # 1.30.130 (2026-05-28 / 0c28f8b)
 
